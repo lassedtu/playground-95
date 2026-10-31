@@ -17,7 +17,7 @@ export const PRINT_FRAME = {
 /** How far the photo extends under the frame on each side, hiding seams. */
 export const PICTURE_BLEED = 2;
 
-/** Picture aspect ratio (width / height), portrait — matches Instax Mini's 46:62. */
+/** Picture aspect ratio (width / height), portrait, matches Instax Mini's 46:62. */
 export const PICTURE_ASPECT = PRINT_FRAME.picture.width / PRINT_FRAME.picture.height;
 
 /** Size the camera frame is cropped and scaled to before developing. */

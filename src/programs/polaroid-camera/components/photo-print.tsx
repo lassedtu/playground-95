@@ -1,12 +1,18 @@
 "use client";
 
 import { useEffect, useReducer, useState } from "react";
-import { Button } from "@react95/core";
+import { Button, useModal } from "@react95/core";
 
-import { downloadUrl } from "../lib/download";
+import { useDesktop } from "@/components/desktop/desktop-context";
+import { downloadUrl } from "@/lib/download";
+import { sendToPaint } from "@/programs/paint/lib/paint-inbox";
+
 import { HANDWRITING_FAMILY, loadHandwriting } from "../lib/handwriting-font";
 import { PRINT_FRAME } from "../lib/photo/instax-mini";
 import { fitNoteFontSize, NOTE, writeNoteOnPrint } from "../lib/photo/note";
+
+/** Must match Paint's id in programs/registry.tsx. */
+const PAINT_PROGRAM_ID = "paint";
 
 /** On-screen print width in CSS px; height follows the frame's aspect ratio. */
 const DISPLAY_WIDTH = 260;
@@ -33,9 +39,11 @@ type PhotoPrintProps = {
 };
 
 export function PhotoPrint({ url, filename, alt }: PhotoPrintProps) {
+  const { openProgram } = useDesktop();
+  const { restore, focus } = useModal();
   const [note, setNote] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState(false);
+  const [busy, setBusy] = useState<"save" | "paint" | null>(null);
+  const [error, setError] = useState<"save" | "paint" | null>(null);
 
   // Re-measure once the handwriting font has loaded (until then the fallback
   // font's widths would size the text).
@@ -53,23 +61,36 @@ export function PhotoPrint({ url, filename, alt }: PhotoPrintProps) {
   const fontSize = fitNoteFontSize(note, HANDWRITING_FAMILY) * DISPLAY_SCALE;
   const { area } = NOTE;
 
-  async function save() {
+  /** The print as a file, with the note written on it if there is one. */
+  async function finishedPrint(): Promise<Blob> {
     const text = note.trim();
-    if (!text) return downloadUrl(url, filename);
-    setSaving(true);
-    setSaveError(false);
+    if (!text) return (await fetch(url)).blob();
+    await loadHandwriting();
+    return writeNoteOnPrint(url, text, HANDWRITING_FAMILY);
+  }
+
+  async function run(action: "save" | "paint") {
+    setBusy(action);
+    setError(null);
     try {
-      await loadHandwriting();
-      const blob = await writeNoteOnPrint(url, text, HANDWRITING_FAMILY);
-      const noted = URL.createObjectURL(blob);
-      downloadUrl(noted, filename);
-      // Give the download a moment to start before freeing the file.
-      setTimeout(() => URL.revokeObjectURL(noted), 10_000);
-    } catch (error) {
-      console.error("Saving photo failed:", error);
-      setSaveError(true);
+      const blob = await finishedPrint();
+      if (action === "paint") {
+        sendToPaint(blob);
+        openProgram(PAINT_PROGRAM_ID);
+        // Bring Paint forward if it was already open (or minimized).
+        restore(PAINT_PROGRAM_ID);
+        focus(PAINT_PROGRAM_ID);
+      } else {
+        const file = URL.createObjectURL(blob);
+        downloadUrl(file, filename);
+        // Give the download a moment to start before freeing the file.
+        setTimeout(() => URL.revokeObjectURL(file), 10_000);
+      }
+    } catch (failure) {
+      console.error(`Photo ${action} failed:`, failure);
+      setError(action);
     } finally {
-      setSaving(false);
+      setBusy(null);
     }
   }
 
@@ -99,7 +120,7 @@ export function PhotoPrint({ url, filename, alt }: PhotoPrintProps) {
           autoComplete="off"
           onChange={(event) => setNote(event.target.value)}
           onKeyDown={(event) => {
-            if (event.key === "Enter") void save();
+            if (event.key === "Enter") void run("save");
           }}
           className="absolute border-0 bg-transparent p-0 text-center outline-none placeholder:text-black/25 focus-visible:outline-1 focus-visible:outline-dashed focus-visible:outline-black/30"
           style={{
@@ -113,9 +134,14 @@ export function PhotoPrint({ url, filename, alt }: PhotoPrintProps) {
           }}
         />
       </div>
-      <Button disabled={saving} onClick={() => void save()}>
-        {saving ? "Saving…" : saveError ? "Retry save…" : "Save…"}
-      </Button>
+      <div className="flex gap-2">
+        <Button disabled={busy !== null} onClick={() => void run("save")}>
+          {busy === "save" ? "Saving…" : error === "save" ? "Retry save…" : "Save…"}
+        </Button>
+        <Button disabled={busy !== null} onClick={() => void run("paint")}>
+          {busy === "paint" ? "Opening…" : error === "paint" ? "Retry Paint" : "Edit in Paint"}
+        </Button>
+      </div>
     </div>
   );
 }
