@@ -16,7 +16,7 @@ export const programs: ProgramDefinition[] = [
       large: <Camera variant="32x32_4" />,
       small: <Camera variant="16x16_4" />,
     },
-    window: { width: 460, height: 480 },
+    window: { width: 500, height: 540 },
     component: dynamic(() =>
       import("./polaroid-camera/polaroid-camera").then((m) => m.PolaroidCamera),
     ),
