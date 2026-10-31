@@ -56,7 +56,7 @@ export function BossScreen({ noteId, onExit }: BossScreenProps) {
     <div
       role="dialog"
       aria-label={heading || "Lecture notes"}
-      className="fixed inset-0 z-[100000] flex flex-col bg-[#f1f3f4] font-[system-ui,-apple-system,'Segoe_UI',Roboto,Arial,sans-serif] text-[#202124]"
+      className="fixed inset-0 z-100000 flex flex-col bg-[#f1f3f4] font-[system-ui,-apple-system,'Segoe_UI',Roboto,Arial,sans-serif] text-[#202124]"
     >
       {/* Title bar */}
       <header className="flex shrink-0 items-center gap-3 bg-white px-3 pt-2">

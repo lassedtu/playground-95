@@ -10,6 +10,7 @@ import { Wordpad } from "@react95/icons/Wordpad";
 import { Sol1 } from "@react95/icons/Sol1";
 import { Winmine1 } from "@react95/icons/Winmine1";
 
+import { HangmanIcon } from "./hangman/components/gallows";
 import { BingoIcon } from "./lecture-bingo/components/bingo-icon";
 import { EightBallIcon } from "./magic-8-ball/components/eight-ball-icon";
 import type { ProgramDefinition } from "./types";
@@ -143,6 +144,18 @@ export const programs: ProgramDefinition[] = [
     },
     window: { width: 520, height: 500 },
     component: dynamic(() => import("./lecture-bingo/lecture-bingo").then((m) => m.LectureBingo)),
+  },
+  {
+    // Must match PROGRAM_ID in hangman.tsx (used by Game → Exit).
+    id: "hangman",
+    category: "games",
+    title: "Hangman",
+    icon: {
+      large: <HangmanIcon size={32} />,
+      small: <HangmanIcon size={16} />,
+    },
+    window: { width: 460, height: 480 },
+    component: dynamic(() => import("./hangman/hangman").then((m) => m.Hangman)),
   },
   {
     // Must match PROGRAM_ID in notes.tsx (used by File → Exit).
