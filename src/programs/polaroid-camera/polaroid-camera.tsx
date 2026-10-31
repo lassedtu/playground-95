@@ -5,6 +5,7 @@ import Image from "next/image";
 import { MediaVideo, Wangimg128 } from "@react95/icons";
 
 import { useDesktop } from "@/components/desktop/desktop-context";
+import { TASKBAR_HEIGHT, WINDOW_CHROME } from "@/components/desktop/desktop-window";
 import { type Menu, MenuBar } from "@/components/ui/menu-bar";
 import { StatusBar, StatusBarField } from "@/components/ui/status-bar";
 import { useElementVisible } from "@/lib/use-element-visible";
@@ -39,9 +40,6 @@ const POLAROID_CAMERA_PROGRAM_ID = "polaroid-camera";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
-/** Window frame + title bar around the content, measured from React95's Modal. */
-const WINDOW_CHROME = { width: 5, height: 30 };
-const TASKBAR_HEIGHT = 28;
 const WINDOW_GAP = 12;
 /** Each new photo is offset a little more, so prints fan out like a stack. */
 const PHOTO_FAN_OFFSET = 20;
@@ -216,10 +214,11 @@ export function PolaroidCamera() {
   return (
     <div ref={rootRef} tabIndex={-1} className="flex size-full flex-col outline-none">
       <MenuBar menus={menus} />
-      <div className="flex min-h-0 flex-1 items-center justify-center p-6">
+      <div className="flex min-h-0 flex-1 items-center justify-center p-6 [container-type:size]">
         <div
           ref={containerRef}
-          className="relative aspect-[1200/1201] h-full max-w-full"
+          // Largest box with the photo's aspect that fits both ways.
+          className="relative aspect-[1200/1201] w-[min(100cqw,100cqh*1200/1201)]"
         >
           <CameraFlip
             facing={facing}

@@ -3,6 +3,8 @@
 import { Suspense } from "react";
 import { Modal, TitleBar } from "@react95/core";
 
+import { useViewportSize, type ViewportSize } from "@/lib/use-viewport-size";
+
 import type { WindowSpec } from "./desktop-context";
 import { ProgramLoading } from "./program-loading";
 
@@ -16,6 +18,28 @@ type DesktopWindowProps = {
 const CASCADE_OFFSET = 24;
 /** React95's Modal is `position: fixed; top: 50px` before the drag offset is applied. */
 const MODAL_BASE_TOP = 50;
+/** Window frame + title bar around the content, measured from React95's Modal. */
+export const WINDOW_CHROME = { width: 5, height: 30 };
+export const TASKBAR_HEIGHT = 28;
+/** Space kept between a window and the screen edges. */
+const SCREEN_MARGIN = 4;
+
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(Math.max(value, min), Math.max(min, max));
+
+/**
+ * Shrinks a window's content size to fit the screen (above the taskbar), so
+ * windows work on phones. Programs lay out with flexbox/measurement and adapt.
+ */
+function fitToViewport(size: WindowSpec["size"], viewport: ViewportSize) {
+  return {
+    width: Math.min(size.width, viewport.width - WINDOW_CHROME.width - SCREEN_MARGIN * 2),
+    height: Math.min(
+      size.height,
+      viewport.height - TASKBAR_HEIGHT - WINDOW_CHROME.height - SCREEN_MARGIN * 2,
+    ),
+  };
+}
 
 /**
  * Modal drags via @neodrag/react with the title bar (`.draggable`) as handle.
@@ -39,10 +63,20 @@ function disarmNeodragClickBlocker() {
 }
 
 export function DesktopWindow({ spec, index, onClose }: DesktopWindowProps) {
+  const viewport = useViewportSize();
+  const size = fitToViewport(spec.size, viewport);
+
+  // Initial position: cascading, or where the program asked for it, then
+  // kept fully on screen (only used when the window first opens).
   const cascade = 40 + (index % 8) * CASCADE_OFFSET;
-  const defaultPosition = spec.position
-    ? { x: spec.position.x, y: spec.position.y - MODAL_BASE_TOP }
-    : { x: cascade + 40, y: cascade - 40 };
+  const wanted = spec.position ?? { x: cascade + 40, y: cascade + MODAL_BASE_TOP - 40 };
+  const outer = { width: size.width + WINDOW_CHROME.width, height: size.height + WINDOW_CHROME.height };
+  const defaultPosition = {
+    x: clamp(wanted.x, SCREEN_MARGIN, viewport.width - outer.width - SCREEN_MARGIN),
+    y:
+      clamp(wanted.y, SCREEN_MARGIN, viewport.height - TASKBAR_HEIGHT - outer.height - SCREEN_MARGIN) -
+      MODAL_BASE_TOP,
+  };
 
   return (
     <Modal
@@ -60,7 +94,8 @@ export function DesktopWindow({ spec, index, onClose }: DesktopWindowProps) {
         <TitleBar.Close key="close" onClick={() => onClose(spec.id)} />,
       ]}
     >
-      <Modal.Content style={{ width: spec.size.width, height: spec.size.height }}>
+      {/* overflow: auto is a fallback for content that can't shrink further. */}
+      <Modal.Content style={{ width: size.width, height: size.height, overflow: "auto" }}>
         {/*
           Programs are lazy-loaded. Without a boundary here, a loading program
           suspends up to the desktop-level boundary, hiding the whole desktop

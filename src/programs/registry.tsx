@@ -2,6 +2,7 @@ import dynamic from "next/dynamic";
 import { Camera } from "@react95/icons/Camera";
 import { Sol1 } from "@react95/icons/Sol1";
 
+import { EightBallIcon } from "./magic-8-ball/components/eight-ball-icon";
 import type { ProgramDefinition } from "./types";
 
 /**
@@ -32,6 +33,18 @@ export const programs: ProgramDefinition[] = [
     },
     window: { width: 500, height: 440 },
     component: dynamic(() => import("./memory/memory").then((m) => m.Memory)),
+  },
+  {
+    id: "magic-8-ball",
+    title: "Magic 8-Ball",
+    icon: {
+      large: <EightBallIcon size={32} />,
+      small: <EightBallIcon size={16} />,
+    },
+    window: { width: 320, height: 380 },
+    component: dynamic(() =>
+      import("./magic-8-ball/magic-8-ball").then((m) => m.MagicEightBall),
+    ),
   },
 ];
 
