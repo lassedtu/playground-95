@@ -115,7 +115,7 @@ export function WordGuess() {
 
   async function share() {
     const rows = guesses.map((g) => scoreGuess(g, answer).map((m) => EMOJI[m]).join(""));
-    const text = `Word Guess 95 #${day - FIRST_DAY + 1} ${won ? guesses.length : "X"}/${MAX_GUESSES}\n\n${rows.join("\n")}`;
+    const text = `Word Guess 95 #${day - FIRST_DAY + 1} ${won ? guesses.length : "X"}/${MAX_GUESSES}\n\n${rows.join("\n")}\n\nPlay at: https://playground-95.vercel.app/`;
     try {
       await navigator.clipboard.writeText(text);
       setMessage("Copied to the clipboard!");
@@ -182,10 +182,10 @@ export function WordGuess() {
                       key={i}
                       aria-hidden
                       className={`flex size-10 items-center justify-center border-2 text-xl font-bold uppercase ${mark
-                          ? `${TILE[mark]} animate-tile-reveal motion-reduce:animate-none`
-                          : letter
-                            ? "border-black bg-white"
-                            : "border-t-[#808080] border-r-white border-b-white border-l-[#808080] bg-white"
+                        ? `${TILE[mark]} animate-tile-reveal motion-reduce:animate-none`
+                        : letter
+                          ? "border-black bg-white"
+                          : "border-t-[#808080] border-r-white border-b-white border-l-[#808080] bg-white"
                         }`}
                       style={mark ? { animationDelay: `${i * 120}ms` } : undefined}
                     >
