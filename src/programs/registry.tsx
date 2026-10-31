@@ -3,6 +3,7 @@ import { Camera } from "@react95/icons/Camera";
 import { KeyboardMouse } from "@react95/icons/KeyboardMouse";
 import { Mspaint } from "@react95/icons/Mspaint";
 import { Settings as SettingsIcon } from "@react95/icons/Settings";
+import { Wordpad } from "@react95/icons/Wordpad";
 import { Sol1 } from "@react95/icons/Sol1";
 import { Winmine1 } from "@react95/icons/Winmine1";
 
@@ -84,6 +85,17 @@ export const programs: ProgramDefinition[] = [
     },
     window: { width: 620, height: 440 },
     component: dynamic(() => import("./paint/paint").then((m) => m.Paint)),
+  },
+  {
+    // Must match PROGRAM_ID in word-guess.tsx (used by Game → Exit).
+    id: "word-guess",
+    title: "Word Guess",
+    icon: {
+      large: <Wordpad variant="32x32_4" />,
+      small: <Wordpad variant="16x16_4" />,
+    },
+    window: { width: 400, height: 520 },
+    component: dynamic(() => import("./word-guess/word-guess").then((m) => m.WordGuess)),
   },
   {
     // Must match PROGRAM_ID in settings.tsx (used by OK / Cancel).

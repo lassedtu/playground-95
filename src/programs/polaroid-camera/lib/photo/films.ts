@@ -17,7 +17,7 @@ export type Film = {
 
 const NO_TONE = [1, 1, 1] as const;
 
-/** Default: instant-film colour — slightly warm highlights, cool lifted shadows, soft vignette. */
+/** Default: instant-film colour, slightly warm highlights, cool lifted shadows, soft vignette. */
 export const CLASSIC_FILM: Film = {
   id: "classic",
   name: "Classic",

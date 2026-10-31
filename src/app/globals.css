@@ -15,6 +15,9 @@
   /* Magic 8-Ball: wobble while shaken (900ms, see SHAKE_MS), then the answer floats up. */
   --animate-ball-shake: ball-shake 900ms ease-in-out;
   --animate-answer-reveal: answer-reveal 1.2s ease-out both;
+  /* Word Guess: a rejected word wiggles; scored tiles flip in one by one. */
+  --animate-row-shake: row-shake 400ms ease-in-out;
+  --animate-tile-reveal: tile-reveal 400ms ease-out both;
 }
 
 /*
@@ -117,4 +120,29 @@ body {
 [role="dialog"] .draggable button img {
   pointer-events: none;
   -webkit-user-drag: none;
+}
+
+@keyframes row-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20%,
+  60% {
+    transform: translateX(-6px);
+  }
+  40%,
+  80% {
+    transform: translateX(6px);
+  }
+}
+
+/* Flips over: starts edge-on, so the colour appears as the tile turns. */
+@keyframes tile-reveal {
+  from {
+    transform: rotateX(90deg);
+  }
+  to {
+    transform: rotateX(0);
+  }
 }
