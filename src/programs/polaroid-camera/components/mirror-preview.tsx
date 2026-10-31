@@ -1,23 +1,22 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { type RefObject, useEffect, useState } from "react";
 
-import type { Region } from "../data/camera-layout";
+import { type Region, regionStyle } from "../data/camera-layout";
 
 type MirrorPreviewProps = {
   region: Region;
   stream: MediaStream | null;
+  /** The camera's <video>; also used to capture photos. */
+  videoRef: RefObject<HTMLVideoElement | null>;
 };
-
-const pct = (fraction: number) => `${fraction * 100}%`;
 
 /**
  * Live camera feed laid over the camera photo's selfie mirror, clipped to the
  * mirror's shape. Until the feed is playing it's transparent, so the photo's
  * own reflection shows instead.
  */
-export function MirrorPreview({ region, stream }: MirrorPreviewProps) {
-  const videoRef = useRef<HTMLVideoElement>(null);
+export function MirrorPreview({ region, stream, videoRef }: MirrorPreviewProps) {
   const [playing, setPlaying] = useState(false);
 
   useEffect(() => {
@@ -29,7 +28,7 @@ export function MirrorPreview({ region, stream }: MirrorPreviewProps) {
       // the stream changing mid-play.
       video.play().catch(() => {});
     }
-  }, [stream]);
+  }, [stream, videoRef]);
 
   const visible = playing && stream !== null;
 
@@ -37,14 +36,9 @@ export function MirrorPreview({ region, stream }: MirrorPreviewProps) {
     <div
       aria-hidden
       className="pointer-events-none absolute overflow-hidden"
-      style={{
-        left: pct(region.left),
-        top: pct(region.top),
-        width: pct(region.width),
-        height: pct(region.height),
-        borderRadius: `${pct(region.radius.x)} / ${pct(region.radius.y)}`,
-      }}
+      style={regionStyle(region)}
     >
+      {/* CSS filters here only affect the mirror; captured frames are unfiltered. */}
       <video
         ref={videoRef}
         muted

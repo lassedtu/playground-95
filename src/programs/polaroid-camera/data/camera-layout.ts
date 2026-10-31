@@ -35,3 +35,19 @@ function fromPixels(
 
 /** The selfie mirror's glass, left of the lens. */
 export const MIRROR = fromPixels(1246, 1550, 1459, 1814, 30);
+
+/** The round shutter button, front left (its outer ring). */
+export const SHUTTER = fromPixels(462, 860, 778, 1176, 158);
+
+const pct = (fraction: number) => `${fraction * 100}%`;
+
+/** Absolute-positioning styles placing an element over a region of the photo. */
+export function regionStyle(region: Region) {
+  return {
+    left: pct(region.left),
+    top: pct(region.top),
+    width: pct(region.width),
+    height: pct(region.height),
+    borderRadius: `${pct(region.radius.x)} / ${pct(region.radius.y)}`,
+  };
+}

@@ -14,13 +14,14 @@ export type CameraStatus =
 type CameraError = Exclude<CameraStatus, "idle" | "starting" | "live">;
 type Result = { stream: MediaStream } | { error: CameraError };
 
-// The mirror is tiny; a modest resolution is plenty for the preview.
+// Also used for photos: a 1080p frame gives a ~800×1080 portrait crop, more
+// than the 690×930 px picture. Browsers fall back to the closest supported size.
 const CONSTRAINTS: MediaStreamConstraints = {
   audio: false,
   video: {
     facingMode: "user",
-    width: { ideal: 640 },
-    height: { ideal: 480 },
+    width: { ideal: 1920 },
+    height: { ideal: 1080 },
   },
 };
 
