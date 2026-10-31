@@ -5,6 +5,8 @@ import { Modal, TitleBar } from "@react95/core";
 
 import type { ProgramDefinition } from "@/programs/types";
 
+import { ProgramLoading } from "./program-loading";
+
 type ProgramWindowProps = {
   program: ProgramDefinition;
   /** Position in the open-window stack, used to cascade new windows. */
@@ -64,7 +66,7 @@ export function ProgramWindow({ program, index, onClose }: ProgramWindowProps) {
           (flicker) and tearing down the TaskBar's listeners so it misses the
           window's "add" event (window missing from the taskbar).
         */}
-        <Suspense fallback={<p className="p-2">Loading…</p>}>
+        <Suspense fallback={<ProgramLoading title={program.title} />}>
           <Program />
         </Suspense>
       </Modal.Content>

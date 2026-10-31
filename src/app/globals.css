@@ -5,6 +5,46 @@
 @theme {
   --font-sans: "MS Sans Serif", Arial, sans-serif;
   --color-desktop: #008080;
+  --color-win-navy: #000080;
+
+  /* Loading screens fade in late so fast loads show nothing instead of a flash. */
+  --animate-delayed-fade-in: delayed-fade-in 200ms ease-out 200ms both;
+  /* Win95 boot screen: colour band scrolling along the bottom of the splash. */
+  --animate-boot-bar: boot-bar 1.6s linear infinite;
+  /* Indeterminate progress: a run of blocks sweeping through the track. */
+  --animate-indeterminate: indeterminate 1.4s steps(28) infinite;
+}
+
+/*
+ * Keyframes live at the top level rather than nested in @theme: nested
+ * keyframes are valid Tailwind v4, but they were dropped in the Next.js
+ * Turbopack pipeline and the animate-* utilities were never generated.
+ */
+@keyframes delayed-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes boot-bar {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes indeterminate {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
 }
 
 html,
