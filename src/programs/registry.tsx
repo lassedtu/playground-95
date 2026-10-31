@@ -3,6 +3,7 @@ import { Calculator } from "@react95/icons/Calculator";
 import { Camera } from "@react95/icons/Camera";
 import { KeyboardMouse } from "@react95/icons/KeyboardMouse";
 import { Mspaint } from "@react95/icons/Mspaint";
+import { Notepad } from "@react95/icons/Notepad";
 import { Settings as SettingsIcon } from "@react95/icons/Settings";
 import { Timedate } from "@react95/icons/Timedate";
 import { Wordpad } from "@react95/icons/Wordpad";
@@ -132,6 +133,17 @@ export const programs: ProgramDefinition[] = [
     },
     window: { width: 520, height: 500 },
     component: dynamic(() => import("./lecture-bingo/lecture-bingo").then((m) => m.LectureBingo)),
+  },
+  {
+    // Must match PROGRAM_ID in notes.tsx (used by File → Exit).
+    id: "notes",
+    title: "Notes",
+    icon: {
+      large: <Notepad variant="32x32_4" />,
+      small: <Notepad variant="16x16_4" />,
+    },
+    window: { width: 560, height: 400 },
+    component: dynamic(() => import("./notes/notes").then((m) => m.Notes)),
   },
   {
     // Must match PROGRAM_ID in settings.tsx (used by OK / Cancel).
