@@ -5,7 +5,6 @@
 @theme {
   --font-sans: "MS Sans Serif", Arial, sans-serif;
   --color-desktop: #008080;
-  --color-win-navy: #000080;
 
   /* Loading screens fade in late so fast loads show nothing instead of a flash. */
   --animate-delayed-fade-in: delayed-fade-in 200ms ease-out 200ms both;
@@ -16,6 +15,15 @@
   /* Magic 8-Ball: wobble while shaken (900ms, see SHAKE_MS), then the answer floats up. */
   --animate-ball-shake: ball-shake 900ms ease-in-out;
   --animate-answer-reveal: answer-reveal 1.2s ease-out both;
+}
+
+/*
+ * Selection highlight (menus, lists, the typing caret): the theme's title-bar
+ * colour, navy in the Windows Standard scheme. `inline` so it follows the
+ * scheme when Settings changes React95's variables at runtime.
+ */
+@theme inline {
+  --color-win-navy: var(--r95-color-headerBackground, #000080);
 }
 
 /*

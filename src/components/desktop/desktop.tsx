@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TaskBar } from "@react95/core";
 
+import { initDisplaySettings } from "@/lib/display/display-settings";
 import { programs } from "@/programs/registry";
 
 import { type DesktopApi, DesktopContext, type WindowSpec } from "./desktop-context";
@@ -11,6 +12,9 @@ import { DesktopWindow } from "./desktop-window";
 import { StartMenu } from "./start-menu";
 
 export function Desktop() {
+  // Apply the saved theme and background as soon as the desktop starts.
+  useEffect(() => initDisplaySettings(), []);
+
   // Open windows, in the order they were opened.
   const [windows, setWindows] = useState<WindowSpec[]>([]);
   // Kept outside state so closing doesn't need a side effect in a state updater.
@@ -58,11 +62,13 @@ export function Desktop() {
     <DesktopContext value={api}>
       <main className="relative h-dvh w-full overflow-hidden">
         <ul className="flex h-[calc(100%-28px)] flex-col flex-wrap content-start gap-2 p-2">
-          {programs.map((program) => (
-            <li key={program.id}>
-              <DesktopIcon program={program} onOpen={openProgram} />
-            </li>
-          ))}
+          {programs
+            .filter((program) => (program.placement ?? "programs") === "programs")
+            .map((program) => (
+              <li key={program.id}>
+                <DesktopIcon program={program} onOpen={openProgram} />
+              </li>
+            ))}
         </ul>
 
         {windows.map((spec, index) => (

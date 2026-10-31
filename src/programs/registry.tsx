@@ -2,6 +2,7 @@ import dynamic from "next/dynamic";
 import { Camera } from "@react95/icons/Camera";
 import { KeyboardMouse } from "@react95/icons/KeyboardMouse";
 import { Mspaint } from "@react95/icons/Mspaint";
+import { Settings as SettingsIcon } from "@react95/icons/Settings";
 import { Sol1 } from "@react95/icons/Sol1";
 import { Winmine1 } from "@react95/icons/Winmine1";
 
@@ -83,6 +84,18 @@ export const programs: ProgramDefinition[] = [
     },
     window: { width: 620, height: 440 },
     component: dynamic(() => import("./paint/paint").then((m) => m.Paint)),
+  },
+  {
+    // Must match PROGRAM_ID in settings.tsx (used by OK / Cancel).
+    id: "settings",
+    title: "Settings",
+    placement: "settings",
+    icon: {
+      large: <SettingsIcon variant="32x32_4" />,
+      small: <SettingsIcon variant="16x16_4" />,
+    },
+    window: { width: 380, height: 440 },
+    component: dynamic(() => import("./settings/settings").then((m) => m.Settings)),
   },
 ];
 

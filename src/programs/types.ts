@@ -21,6 +21,11 @@ export type ProgramDefinition = {
     width: number;
     height: number;
   };
+  /**
+   * Where it's listed. "programs" (default): desktop icon and Start → Programs.
+   * "settings": only as Start → Settings, like Win95's Control Panel items.
+   */
+  placement?: "programs" | "settings";
   /** The program's UI. Load it lazily so each program is its own chunk. */
   component: ComponentType;
 };
