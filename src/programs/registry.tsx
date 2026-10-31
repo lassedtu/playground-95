@@ -4,6 +4,7 @@ import { Camera } from "@react95/icons/Camera";
 import { KeyboardMouse } from "@react95/icons/KeyboardMouse";
 import { Mspaint } from "@react95/icons/Mspaint";
 import { Settings as SettingsIcon } from "@react95/icons/Settings";
+import { Timedate } from "@react95/icons/Timedate";
 import { Wordpad } from "@react95/icons/Wordpad";
 import { Sol1 } from "@react95/icons/Sol1";
 import { Winmine1 } from "@react95/icons/Winmine1";
@@ -108,6 +109,17 @@ export const programs: ProgramDefinition[] = [
     },
     window: { width: 380, height: 440 },
     component: dynamic(() => import("./game-2048/game-2048").then((m) => m.Game2048)),
+  },
+  {
+    // Must match PROGRAM_ID in reaction-test.tsx (used by Test → Exit).
+    id: "reaction-test",
+    title: "Reaction Test",
+    icon: {
+      large: <Timedate variant="32x32_4" />,
+      small: <Timedate variant="16x16_4" />,
+    },
+    window: { width: 420, height: 340 },
+    component: dynamic(() => import("./reaction-test/reaction-test").then((m) => m.ReactionTest)),
   },
   {
     // Must match PROGRAM_ID in settings.tsx (used by OK / Cancel).
