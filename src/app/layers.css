@@ -1,0 +1,7 @@
+/*
+ * Must be the first CSS the browser parses: the first `@layer` statement
+ * fixes the cascade order for the whole page. React95 sits between
+ * Tailwind's preflight (base) and its utilities, so preflight can't break
+ * React95 components while Tailwind utilities can still override them.
+ */
+@layer theme, base, react95, components, utilities;
