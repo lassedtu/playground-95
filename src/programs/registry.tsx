@@ -1,5 +1,6 @@
 import dynamic from "next/dynamic";
 import { Camera } from "@react95/icons/Camera";
+import { KeyboardMouse } from "@react95/icons/KeyboardMouse";
 import { Sol1 } from "@react95/icons/Sol1";
 import { Winmine1 } from "@react95/icons/Winmine1";
 
@@ -58,6 +59,18 @@ export const programs: ProgramDefinition[] = [
     // Fits Expert (30×16) at 16 px cells; smaller levels get bigger cells.
     window: { width: 510, height: 370 },
     component: dynamic(() => import("./minesweeper/minesweeper").then((m) => m.Minesweeper)),
+  },
+  {
+    // Must match PROGRAM_ID in typing-test.tsx (used by Test → Exit).
+    id: "typing-test",
+    title: "Typing Test",
+    icon: {
+      large: <KeyboardMouse variant="32x32_4" />,
+      // No 16 px version exists; an exact half-size scale stays clean.
+      small: <KeyboardMouse variant="32x32_4" width={16} height={16} />,
+    },
+    window: { width: 520, height: 300 },
+    component: dynamic(() => import("./typing-test/typing-test").then((m) => m.TypingTest)),
   },
 ];
 
