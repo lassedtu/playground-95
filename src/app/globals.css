@@ -15,6 +15,14 @@
   /* Magic 8-Ball: wobble while shaken (900ms, see SHAKE_MS), then the answer floats up. */
   --animate-ball-shake: ball-shake 900ms ease-in-out;
   --animate-answer-reveal: answer-reveal 1.2s ease-out both;
+  /* Word Guess: a rejected word wiggles; scored tiles flip in one by one. */
+  --animate-row-shake: row-shake 400ms ease-in-out;
+  --animate-tile-reveal: tile-reveal 400ms ease-out both;
+  /* 2048: new tiles grow in after the slide; merged tiles pulse. */
+  --animate-tile-pop: tile-pop 180ms ease-out 80ms both;
+  --animate-tile-merge: tile-merge 180ms ease-out 80ms;
+  /* Boss key: the "how to go back" hint shows for ~4 s, then fades away. */
+  --animate-boss-hint: boss-hint 4.5s ease-in both;
 }
 
 /*
@@ -117,4 +125,55 @@ body {
 [role="dialog"] .draggable button img {
   pointer-events: none;
   -webkit-user-drag: none;
+}
+
+@keyframes row-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20%,
+  60% {
+    transform: translateX(-6px);
+  }
+  40%,
+  80% {
+    transform: translateX(6px);
+  }
+}
+
+/* Flips over: starts edge-on, so the colour appears as the tile turns. */
+@keyframes tile-reveal {
+  from {
+    transform: rotateX(90deg);
+  }
+  to {
+    transform: rotateX(0);
+  }
+}
+
+@keyframes tile-pop {
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+@keyframes tile-merge {
+  50% {
+    transform: scale(1.12);
+  }
+}
+
+@keyframes boss-hint {
+  0%,
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    visibility: hidden;
+  }
 }

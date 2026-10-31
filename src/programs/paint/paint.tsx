@@ -14,7 +14,7 @@ import { type ToolId, TOOLS } from "./data/tools";
 import { onPictureSent, takePendingPicture } from "./lib/paint-inbox";
 import { constrain, ellipse, floodFill, line, type Point, rectangle, spray } from "./lib/raster";
 
-/** Must match the id in programs/registry.tsx (used by File → Exit). */
+/** Must match the id in programs/registry.tsx (used by File -> Exit). */
 const PROGRAM_ID = "paint";
 const DEFAULT_SIZE = { width: 480, height: 300 };
 /** Opened pictures larger than this are scaled down (keeps memory and fills fast). */

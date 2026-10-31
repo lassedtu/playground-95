@@ -15,7 +15,7 @@ import { DEFAULT_LEVEL, type Level, LEVELS } from "./data/levels";
 import { recordTime } from "./lib/best-times";
 import { type Cell, chord, cycleMark, type Game, newGame, reveal } from "./lib/game";
 
-/** Must match the id in programs/registry.tsx (used by Game → Exit). */
+/** Must match the id in programs/registry.tsx (used by Game -> Exit). */
 const PROGRAM_ID = "minesweeper";
 const BEST_TIMES_WINDOW_ID = "minesweeper-best-times";
 const SETTINGS_KEY = "playground95.minesweeper.settings";
@@ -308,11 +308,10 @@ export function Minesweeper() {
                   tabIndex={index === focusIndex ? 0 : -1}
                   aria-label={cellLabel(c, index, game)}
                   onFocus={() => setFocusIndex(index)}
-                  className={`flex items-center justify-center p-0 leading-none font-bold outline-none focus-visible:z-10 focus-visible:outline-1 focus-visible:-outline-offset-2 focus-visible:outline-dotted focus-visible:outline-black ${
-                    flat
+                  className={`flex items-center justify-center p-0 leading-none font-bold outline-none focus-visible:z-10 focus-visible:outline-1 focus-visible:-outline-offset-2 focus-visible:outline-dotted focus-visible:outline-black ${flat
                       ? "border-t border-l border-[#808080]"
                       : `border-0 shadow-[inset_-2px_-2px_#808080,inset_2px_2px_#fff] ${over ? "" : "active:border-t active:border-l active:border-[#808080] active:shadow-none"}`
-                  } ${index === game.exploded ? "bg-[#ff0000]" : "bg-[#c0c0c0]"}`}
+                    } ${index === game.exploded ? "bg-[#ff0000]" : "bg-[#c0c0c0]"}`}
                   style={{ fontSize: Math.round(cell * 0.62), color: NUMBER_COLORS[revealed ? c.adjacent : 0] }}
                 >
                   {wrongFlag ? (

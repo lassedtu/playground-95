@@ -47,7 +47,7 @@ export const DEFAULT_THEME: ThemeId = "win95";
 
 export type ThemeColors = Record<string, string>;
 
-/** "rainyDay" → "Rainy Day"; the default is called what Win95 called it. */
+/** "rainyDay" -> "Rainy Day"; the default is called what Win95 called it. */
 export function themeLabel(id: ThemeId): string {
   if (id === "win95") return "Windows Standard";
   if (id === "theSixtiesUSA") return "The Sixties USA";

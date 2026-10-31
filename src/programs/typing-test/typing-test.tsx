@@ -15,7 +15,7 @@ import { TEXTS } from "./data/texts";
 import { randomWords } from "./data/words";
 import { accuracy, countCorrect, recordResult, type Result, wordsPerMinute } from "./lib/results";
 
-/** Must match the id in programs/registry.tsx (used by Test → Exit). */
+/** Must match the id in programs/registry.tsx (used by Test -> Exit). */
 const PROGRAM_ID = "typing-test";
 const BEST_WINDOW_ID = "typing-test-best";
 const CHOICE_KEY = "playground95.typing-test.choice";

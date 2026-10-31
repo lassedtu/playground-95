@@ -41,15 +41,6 @@ export const MIRROR = front(1246, 1550, 1459, 1814, 30);
 /** The round shutter button, front left (its outer ring). */
 export const SHUTTER = front(462, 860, 778, 1176, 158);
 
-/** The camera body, without the strap (left) and the lens bulge (right). */
-export const FRONT_BODY = front(347, 9, 2457, 2521);
-
-// --- Back: polaroid-back.png (2181×2576) ---
-const back = measuredOn({ width: 2181, height: 2576 });
-
-/** The camera body. Same aspect as FRONT_BODY (0.841 vs 0.840), so they line up. */
-export const BACK_BODY = back(36, 9, 2168, 2544);
-
 const pct = (fraction: number) => `${fraction * 100}%`;
 
 /** Absolute-positioning styles placing an element over a region of a photo. */
@@ -60,19 +51,5 @@ export function regionStyle(region: Region): CSSProperties {
     width: pct(region.width),
     height: pct(region.height),
     borderRadius: `${pct(region.radius.x)} / ${pct(region.radius.y)}`,
-  };
-}
-
-/**
- * The inverse of `regionStyle`: sizes and positions a whole photo so that
- * `body` exactly fills the parent. Used to align front and back photos on
- * the same body box, so turning the camera around lines up.
- */
-export function fillWithRegion(body: Region): CSSProperties {
-  return {
-    left: pct(-body.left / body.width),
-    top: pct(-body.top / body.height),
-    width: pct(1 / body.width),
-    height: pct(1 / body.height),
   };
 }

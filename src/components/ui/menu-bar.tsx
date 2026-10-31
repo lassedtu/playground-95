@@ -89,7 +89,8 @@ export function MenuBar({ menus }: MenuBarProps) {
   }
 
   return (
-    <div ref={barRef} role="menubar" className="relative flex shrink-0 select-none">
+    // z-50: dropdowns must stay above the program's content (e.g. stacked cells).
+    <div ref={barRef} role="menubar" className="relative z-50 flex shrink-0 select-none">
       {menus.map((menu, index) => {
         const isOpen = open === index;
         const menuId = `${baseId}-menu-${index}`;

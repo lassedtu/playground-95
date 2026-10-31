@@ -33,7 +33,7 @@ export type FilmLook = {
 const LUT_SIZE = 1024;
 const lutCache = new WeakMap<FilmLook, Float32Array>();
 
-/** Exposure → contrast → black/white levels, precomputed as a lookup table. */
+/** Exposure -> contrast -> black/white levels, precomputed as a lookup table. */
 function toneCurve(look: FilmLook): Float32Array {
   let lut = lutCache.get(look);
   if (lut) return lut;

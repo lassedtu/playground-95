@@ -1,27 +1,18 @@
-import type { StaticImageData } from "next/image";
-
-import pack1 from "../../assets/films/pack-1.webp";
-import pack2 from "../../assets/films/pack-2.webp";
-import pack3 from "../../assets/films/pack-3.webp";
-import pack4 from "../../assets/films/pack-4.webp";
-
 import type { FilmLook } from "./film-look";
 
-/** A film stock: its pack photo (shown in the film menu) and its look. */
+/** A film stock (shown as a filter): its name and look. */
 export type Film = {
   id: string;
   name: string;
-  pack: StaticImageData;
   look: FilmLook;
 };
 
 const NO_TONE = [1, 1, 1] as const;
 
-/** Default: instant-film colour — slightly warm highlights, cool lifted shadows, soft vignette. */
+/** Default: instant-film colour, slightly warm highlights, cool lifted shadows, soft vignette. */
 export const CLASSIC_FILM: Film = {
   id: "classic",
   name: "Classic",
-  pack: pack1,
   look: {
     exposure: 1.04,
     contrast: 1.08,
@@ -41,7 +32,6 @@ export const FILMS: readonly Film[] = [
   {
     id: "warm",
     name: "Warm",
-    pack: pack2,
     look: {
       exposure: 1.05,
       contrast: 1.06,
@@ -58,7 +48,6 @@ export const FILMS: readonly Film[] = [
   {
     id: "cold",
     name: "Cold",
-    pack: pack3,
     look: {
       exposure: 1.02,
       contrast: 1.1,
@@ -75,7 +64,6 @@ export const FILMS: readonly Film[] = [
   {
     id: "faded",
     name: "Faded",
-    pack: pack4,
     look: {
       exposure: 1.06,
       contrast: 0.84,

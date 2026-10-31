@@ -22,10 +22,10 @@ export type ProgramDefinition = {
     height: number;
   };
   /**
-   * Where it's listed. "programs" (default): desktop icon and Start → Programs.
-   * "settings": only as Start → Settings, like Win95's Control Panel items.
+   * Where it's listed in the Start menu: Programs or Games (both also get a
+   * desktop icon), or Settings (Start menu only, like Win95's Control Panel).
    */
-  placement?: "programs" | "settings";
+  category: "programs" | "games" | "settings";
   /** The program's UI. Load it lazily so each program is its own chunk. */
   component: ComponentType;
 };
