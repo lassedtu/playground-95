@@ -1,5 +1,5 @@
 /**
- * Memory game rules as pure functions: (state, action) → new state.
+ * Memory game rules as pure functions: (state, action) -> new state.
  * Shuffling is the only randomness and happens in `deal`.
  */
 import type { Difficulty } from "../data/difficulties";

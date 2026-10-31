@@ -18,6 +18,9 @@
   /* Word Guess: a rejected word wiggles; scored tiles flip in one by one. */
   --animate-row-shake: row-shake 400ms ease-in-out;
   --animate-tile-reveal: tile-reveal 400ms ease-out both;
+  /* 2048: new tiles grow in after the slide; merged tiles pulse. */
+  --animate-tile-pop: tile-pop 180ms ease-out 80ms both;
+  --animate-tile-merge: tile-merge 180ms ease-out 80ms;
 }
 
 /*
@@ -144,5 +147,20 @@ body {
   }
   to {
     transform: rotateX(0);
+  }
+}
+
+@keyframes tile-pop {
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+@keyframes tile-merge {
+  50% {
+    transform: scale(1.12);
   }
 }

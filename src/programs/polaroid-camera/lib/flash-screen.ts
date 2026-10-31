@@ -2,7 +2,7 @@
  * Shutter flash timeline, in ms from the moment the flash appears:
  *
  *   0 ──── HOLD ────┬──── FADE ────┐
- *   bright white    │ fades out    │ done → photo appears
+ *   bright white    │ fades out    │ done -> photo appears
  *
  * The photo is captured *before* the flash starts: the screen's light would
  * otherwise reach the webcam and wash out the picture.
@@ -53,7 +53,7 @@ export function flashScreen(): ScreenFlash {
   );
 
   const done = animation.finished
-    .catch(() => {})
+    .catch(() => { })
     .then(() => overlay.remove());
 
   return { done };

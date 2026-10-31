@@ -20,7 +20,7 @@ import {
 } from "./lib/game";
 import { loadGuesses, loadStats, recordGame, saveGuesses, type Stats } from "./lib/storage";
 
-/** Must match the id in programs/registry.tsx (used by Game → Exit). */
+/** Must match the id in programs/registry.tsx (used by Game -> Exit). */
 const PROGRAM_ID = "word-guess";
 /** Day numbers count from here in the share text ("Word Guess #1"). */
 const FIRST_DAY = dayNumber(new Date(2026, 10, 1));
@@ -181,13 +181,12 @@ export function WordGuess() {
                     <span
                       key={i}
                       aria-hidden
-                      className={`flex size-10 items-center justify-center border-2 text-xl font-bold uppercase ${
-                        mark
+                      className={`flex size-10 items-center justify-center border-2 text-xl font-bold uppercase ${mark
                           ? `${TILE[mark]} animate-tile-reveal motion-reduce:animate-none`
                           : letter
                             ? "border-black bg-white"
                             : "border-t-[#808080] border-r-white border-b-white border-l-[#808080] bg-white"
-                      }`}
+                        }`}
                       style={mark ? { animationDelay: `${i * 120}ms` } : undefined}
                     >
                       {letter}

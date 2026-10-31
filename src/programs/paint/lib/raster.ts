@@ -68,7 +68,7 @@ export function constrain(start: Point, end: Point, kind: "line" | "box"): Point
   return { x: start.x + Math.round(Math.cos(angle) * length), y: start.y + Math.round(Math.sin(angle) * length) };
 }
 
-/** "#rrggbb" → packed RGBA as stored in a Uint32Array view of ImageData (little-endian). */
+/** "#rrggbb" -> packed RGBA as stored in a Uint32Array view of ImageData (little-endian). */
 function packColor(hex: string): number {
   const value = parseInt(hex.slice(1), 16);
   const r = (value >> 16) & 255;

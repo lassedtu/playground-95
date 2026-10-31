@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { MediaVideo, Wangimg128 } from "@react95/icons";
+import { Wangimg128 } from "@react95/icons";
 
 import { useDesktop } from "@/components/desktop/desktop-context";
 import { TASKBAR_HEIGHT, WINDOW_CHROME } from "@/components/desktop/desktop-window";
@@ -10,10 +10,7 @@ import { type Menu, MenuBar } from "@/components/ui/menu-bar";
 import { StatusBar, StatusBarField } from "@/components/ui/status-bar";
 import { useElementVisible } from "@/lib/use-element-visible";
 
-import cameraBack from "./assets/camera-back.webp";
 import cameraOpen from "./assets/camera-open.webp";
-import { type CameraFacing, CameraFlip } from "./components/camera-flip";
-import { FILM_PICKER_SIZE, FilmPicker } from "./components/film-picker";
 import { MirrorPreview } from "./components/mirror-preview";
 import { PHOTO_WINDOW_SIZE, PhotoPrint } from "./components/photo-print";
 import { ShutterButton } from "./components/shutter-button";
@@ -34,8 +31,7 @@ const STATUS_MESSAGES: Record<CameraStatus, string> = {
   error: "Camera couldn't be started.",
 };
 
-const FILM_WINDOW_ID = "polaroid-camera-film";
-/** Must match the id in programs/registry.tsx (used by Camera → Exit). */
+/** Must match the id in programs/registry.tsx (used by Camera -> Exit). */
 const POLAROID_CAMERA_PROGRAM_ID = "polaroid-camera";
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -92,52 +88,15 @@ export function PolaroidCamera() {
   const photosTaken = useRef(0);
 
   const [film, setFilm] = useState<Film>(CLASSIC_FILM);
-  // The camera faces away while the Filters window is open, as if loading film.
-  const [facing, setFacing] = useState<CameraFacing>("front");
-  // Focus returns here when the Filters window closes.
-  const rootRef = useRef<HTMLDivElement>(null);
 
   // Preload the print frame so the first photo isn't delayed by it.
   useEffect(() => {
-    loadPrintFrame().catch(() => {}); // a failure resurfaces when shooting
+    loadPrintFrame().catch(() => { }); // a failure resurfaces when shooting
   }, []);
-
-  // The Film window belongs to the camera: close it along with the camera.
-  useEffect(() => () => closeWindow(FILM_WINDOW_ID), [closeWindow]);
-
-  function openFilmWindow() {
-    setFacing("back");
-    const close = () => closeWindow(FILM_WINDOW_ID);
-    openWindow({
-      id: FILM_WINDOW_ID,
-      title: "Filters",
-      icon: <MediaVideo variant="16x16_4" />,
-      size: FILM_PICKER_SIZE,
-      position: besideCamera(videoRef.current?.closest('[role="dialog"]') ?? null, FILM_PICKER_SIZE),
-      // Rendered once when opened; picking a film closes the window, so the
-      // selection shown never goes stale.
-      content: (
-        <FilmPicker
-          films={FILMS}
-          selectedId={film.id}
-          onSelect={(next) => {
-            setFilm(next);
-            close();
-          }}
-          onCancel={close}
-        />
-      ),
-      // Also runs for the title bar's close button.
-      onClose: () => {
-        setFacing("front");
-        rootRef.current?.focus();
-      },
-    });
-  }
 
   async function shoot() {
     const video = videoRef.current;
-    if (!video || status !== "live" || developing || facing !== "front") return;
+    if (!video || status !== "live" || developing) return;
 
     setDeveloping(true);
     setPhotoError(false);
@@ -178,11 +137,9 @@ export function PolaroidCamera() {
     ? "Couldn't take the photo. Try again."
     : developing
       ? "Developing…"
-      : facing === "back"
-        ? "Choose a filter."
-        : STATUS_MESSAGES[status];
+      : STATUS_MESSAGES[status];
 
-  const canShoot = status === "live" && !developing && facing === "front";
+  const canShoot = status === "live" && !developing;
 
   const menus: Menu[] = [
     {
@@ -195,24 +152,16 @@ export function PolaroidCamera() {
     },
     {
       label: "Filters",
-      entries: [
-        ...FILMS.map((option) => ({
-          label: option.name,
-          checked: option.id === film.id,
-          onSelect: () => {
-            setFilm(option);
-            // Its highlight would be stale; the menu choice replaces it.
-            closeWindow(FILM_WINDOW_ID);
-          },
-        })),
-        "divider",
-        { label: "Film Packs…", onSelect: openFilmWindow },
-      ],
+      entries: FILMS.map((option) => ({
+        label: option.name,
+        checked: option.id === film.id,
+        onSelect: () => setFilm(option),
+      })),
     },
   ];
 
   return (
-    <div ref={rootRef} tabIndex={-1} className="flex size-full flex-col outline-none">
+    <div className="flex size-full flex-col">
       <MenuBar menus={menus} />
       <div className="flex min-h-0 flex-1 items-center justify-center p-6 [container-type:size]">
         <div
@@ -220,41 +169,16 @@ export function PolaroidCamera() {
           // Largest box with the photo's aspect that fits both ways.
           className="relative aspect-[1200/1201] w-[min(100cqw,100cqh*1200/1201)]"
         >
-          <CameraFlip
-            facing={facing}
-            front={
-              <>
-                <Image
-                  src={cameraOpen}
-                  alt="Instax Mini 12 instant camera"
-                  sizes="420px"
-                  loading="eager"
-                  draggable={false}
-                  className="size-full select-none"
-                />
-                <MirrorPreview
-                  region={MIRROR}
-                  stream={stream}
-                  videoRef={videoRef}
-                  look={film.look}
-                />
-                <ShutterButton
-                  region={SHUTTER}
-                  disabled={!canShoot}
-                  onPress={shoot}
-                />
-              </>
-            }
-            back={
-              <Image
-                src={cameraBack}
-                alt="Back of the camera"
-                sizes="420px"
-                draggable={false}
-                className="size-full select-none"
-              />
-            }
+          <Image
+            src={cameraOpen}
+            alt="Instax Mini 12 instant camera"
+            sizes="420px"
+            loading="eager"
+            draggable={false}
+            className="size-full select-none"
           />
+          <MirrorPreview region={MIRROR} stream={stream} videoRef={videoRef} look={film.look} />
+          <ShutterButton region={SHUTTER} disabled={!canShoot} onPress={shoot} />
         </div>
       </div>
       <StatusBar>

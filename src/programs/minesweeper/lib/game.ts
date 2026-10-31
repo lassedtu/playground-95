@@ -1,5 +1,5 @@
 /**
- * Minesweeper rules as pure functions: (game, action) → new game. Functions
+ * Minesweeper rules as pure functions: (game, action) -> new game. Functions
  * return the same object when an action does nothing.
  */
 import type { Level } from "../data/levels";
@@ -135,7 +135,7 @@ export function chord(game: Game, index: number): Game {
   return toReveal.length ? revealAll(game, toReveal) : game;
 }
 
-/** Right-click: hidden → flagged → ? (if marks are on) → hidden. */
+/** Right-click: hidden -> flagged -> ? (if marks are on) -> hidden. */
 export function cycleMark(game: Game, index: number, marks: boolean): Game {
   if (isOver(game)) return game;
   const cell = game.cells[index];

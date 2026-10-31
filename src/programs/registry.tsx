@@ -1,4 +1,5 @@
 import dynamic from "next/dynamic";
+import { Calculator } from "@react95/icons/Calculator";
 import { Camera } from "@react95/icons/Camera";
 import { KeyboardMouse } from "@react95/icons/KeyboardMouse";
 import { Mspaint } from "@react95/icons/Mspaint";
@@ -29,7 +30,7 @@ export const programs: ProgramDefinition[] = [
     ),
   },
   {
-    // Must match MEMORY_PROGRAM_ID in memory.tsx (used by Game → Exit).
+    // Must match MEMORY_PROGRAM_ID in memory.tsx (used by Game -> Exit).
     id: "memory",
     title: "Memory",
     icon: {
@@ -52,7 +53,7 @@ export const programs: ProgramDefinition[] = [
     ),
   },
   {
-    // Must match PROGRAM_ID in minesweeper.tsx (used by Game → Exit).
+    // Must match PROGRAM_ID in minesweeper.tsx (used by Game -> Exit).
     id: "minesweeper",
     title: "Minesweeper",
     icon: {
@@ -64,7 +65,7 @@ export const programs: ProgramDefinition[] = [
     component: dynamic(() => import("./minesweeper/minesweeper").then((m) => m.Minesweeper)),
   },
   {
-    // Must match PROGRAM_ID in typing-test.tsx (used by Test → Exit).
+    // Must match PROGRAM_ID in typing-test.tsx (used by Test -> Exit).
     id: "typing-test",
     title: "Typing Test",
     icon: {
@@ -76,7 +77,7 @@ export const programs: ProgramDefinition[] = [
     component: dynamic(() => import("./typing-test/typing-test").then((m) => m.TypingTest)),
   },
   {
-    // Must match PROGRAM_ID in paint.tsx (used by File → Exit).
+    // Must match PROGRAM_ID in paint.tsx (used by File -> Exit).
     id: "paint",
     title: "Paint",
     icon: {
@@ -87,7 +88,7 @@ export const programs: ProgramDefinition[] = [
     component: dynamic(() => import("./paint/paint").then((m) => m.Paint)),
   },
   {
-    // Must match PROGRAM_ID in word-guess.tsx (used by Game → Exit).
+    // Must match PROGRAM_ID in word-guess.tsx (used by Game -> Exit).
     id: "word-guess",
     title: "Word Guess",
     icon: {
@@ -96,6 +97,17 @@ export const programs: ProgramDefinition[] = [
     },
     window: { width: 400, height: 520 },
     component: dynamic(() => import("./word-guess/word-guess").then((m) => m.WordGuess)),
+  },
+  {
+    // Must match PROGRAM_ID in game-2048.tsx (used by Game -> Exit).
+    id: "game-2048",
+    title: "2048",
+    icon: {
+      large: <Calculator variant="32x32_4" />,
+      small: <Calculator variant="16x16_4" />,
+    },
+    window: { width: 380, height: 440 },
+    component: dynamic(() => import("./game-2048/game-2048").then((m) => m.Game2048)),
   },
   {
     // Must match PROGRAM_ID in settings.tsx (used by OK / Cancel).
