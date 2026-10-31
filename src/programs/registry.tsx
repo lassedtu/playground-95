@@ -9,6 +9,7 @@ import { Wordpad } from "@react95/icons/Wordpad";
 import { Sol1 } from "@react95/icons/Sol1";
 import { Winmine1 } from "@react95/icons/Winmine1";
 
+import { BingoIcon } from "./lecture-bingo/components/bingo-icon";
 import { EightBallIcon } from "./magic-8-ball/components/eight-ball-icon";
 import type { ProgramDefinition } from "./types";
 
@@ -120,6 +121,17 @@ export const programs: ProgramDefinition[] = [
     },
     window: { width: 420, height: 340 },
     component: dynamic(() => import("./reaction-test/reaction-test").then((m) => m.ReactionTest)),
+  },
+  {
+    // Must match PROGRAM_ID in lecture-bingo.tsx (used by Game → Exit).
+    id: "lecture-bingo",
+    title: "Lecture Bingo",
+    icon: {
+      large: <BingoIcon size={32} />,
+      small: <BingoIcon size={16} />,
+    },
+    window: { width: 520, height: 500 },
+    component: dynamic(() => import("./lecture-bingo/lecture-bingo").then((m) => m.LectureBingo)),
   },
   {
     // Must match PROGRAM_ID in settings.tsx (used by OK / Cancel).
