@@ -1,5 +1,6 @@
 import dynamic from "next/dynamic";
-import { Camera } from "@react95/icons";
+import { Camera } from "@react95/icons/Camera";
+import { Sol1 } from "@react95/icons/Sol1";
 
 import type { ProgramDefinition } from "./types";
 
@@ -20,6 +21,17 @@ export const programs: ProgramDefinition[] = [
     component: dynamic(() =>
       import("./polaroid-camera/polaroid-camera").then((m) => m.PolaroidCamera),
     ),
+  },
+  {
+    // Must match MEMORY_PROGRAM_ID in memory.tsx (used by Game → Exit).
+    id: "memory",
+    title: "Memory",
+    icon: {
+      large: <Sol1 variant="32x32_4" />,
+      small: <Sol1 variant="16x16_4" />,
+    },
+    window: { width: 500, height: 440 },
+    component: dynamic(() => import("./memory/memory").then((m) => m.Memory)),
   },
 ];
 

@@ -2,11 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { Button } from "@react95/core";
 import { MediaVideo, Wangimg128 } from "@react95/icons";
 
 import { useDesktop } from "@/components/desktop/desktop-context";
+import { type Menu, MenuBar } from "@/components/ui/menu-bar";
 import { StatusBar, StatusBarField } from "@/components/ui/status-bar";
+import { useElementVisible } from "@/lib/use-element-visible";
 
 import cameraBack from "./assets/camera-back.webp";
 import cameraOpen from "./assets/camera-open.webp";
@@ -21,7 +22,6 @@ import { captureFrame, developPrint } from "./lib/photo/develop-print";
 import { CLASSIC_FILM, FILMS, type Film } from "./lib/photo/films";
 import { loadPrintFrame } from "./lib/photo/print-frame";
 import { type CameraStatus, useCameraStream } from "./lib/use-camera-stream";
-import { useElementVisible } from "./lib/use-element-visible";
 
 const STATUS_MESSAGES: Record<CameraStatus, string> = {
   idle: "Camera off",
@@ -34,6 +34,8 @@ const STATUS_MESSAGES: Record<CameraStatus, string> = {
 };
 
 const FILM_WINDOW_ID = "polaroid-camera-film";
+/** Must match the id in programs/registry.tsx (used by Camera → Exit). */
+const POLAROID_CAMERA_PROGRAM_ID = "polaroid-camera";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -92,9 +94,10 @@ export function PolaroidCamera() {
   const photosTaken = useRef(0);
 
   const [film, setFilm] = useState<Film>(CLASSIC_FILM);
-  // The camera faces away while the Film window is open, as if loading film.
+  // The camera faces away while the Filters window is open, as if loading film.
   const [facing, setFacing] = useState<CameraFacing>("front");
-  const filmButtonRef = useRef<HTMLButtonElement>(null);
+  // Focus returns here when the Filters window closes.
+  const rootRef = useRef<HTMLDivElement>(null);
 
   // Preload the print frame so the first photo isn't delayed by it.
   useEffect(() => {
@@ -129,7 +132,7 @@ export function PolaroidCamera() {
       // Also runs for the title bar's close button.
       onClose: () => {
         setFacing("front");
-        filmButtonRef.current?.focus();
+        rootRef.current?.focus();
       },
     });
   }
@@ -181,17 +184,38 @@ export function PolaroidCamera() {
         ? "Choose a filter."
         : STATUS_MESSAGES[status];
 
+  const canShoot = status === "live" && !developing && facing === "front";
+
+  const menus: Menu[] = [
+    {
+      label: "Camera",
+      entries: [
+        { label: "Take Photo", disabled: !canShoot, onSelect: () => void shoot() },
+        "divider",
+        { label: "Exit", onSelect: () => closeWindow(POLAROID_CAMERA_PROGRAM_ID) },
+      ],
+    },
+    {
+      label: "Filters",
+      entries: [
+        ...FILMS.map((option) => ({
+          label: option.name,
+          checked: option.id === film.id,
+          onSelect: () => {
+            setFilm(option);
+            // Its highlight would be stale; the menu choice replaces it.
+            closeWindow(FILM_WINDOW_ID);
+          },
+        })),
+        "divider",
+        { label: "Film Packs…", onSelect: openFilmWindow },
+      ],
+    },
+  ];
+
   return (
-    <div className="flex size-full flex-col">
-      <div className="flex shrink-0 gap-1 pb-1">
-        <Button
-          ref={filmButtonRef}
-          aria-expanded={facing === "back"}
-          onClick={() => (facing === "front" ? openFilmWindow() : closeWindow(FILM_WINDOW_ID))}
-        >
-          {facing === "front" ? "Filters…" : "Done"}
-        </Button>
-      </div>
+    <div ref={rootRef} tabIndex={-1} className="flex size-full flex-col outline-none">
+      <MenuBar menus={menus} />
       <div className="flex min-h-0 flex-1 items-center justify-center p-6">
         <div
           ref={containerRef}
@@ -217,7 +241,7 @@ export function PolaroidCamera() {
                 />
                 <ShutterButton
                   region={SHUTTER}
-                  disabled={status !== "live" || developing || facing !== "front"}
+                  disabled={!canShoot}
                   onPress={shoot}
                 />
               </>
