@@ -1,6 +1,7 @@
 import dynamic from "next/dynamic";
 import { Calculator } from "@react95/icons/Calculator";
 import { Camera } from "@react95/icons/Camera";
+import { Globe } from "@react95/icons/Globe";
 import { KeyboardMouse } from "@react95/icons/KeyboardMouse";
 import { Mspaint } from "@react95/icons/Mspaint";
 import { Notepad } from "@react95/icons/Notepad";
@@ -156,6 +157,18 @@ export const programs: ProgramDefinition[] = [
     },
     window: { width: 460, height: 480 },
     component: dynamic(() => import("./hangman/hangman").then((m) => m.Hangman)),
+  },
+  {
+    // Must match PROGRAM_ID in flag-quiz.tsx (used by Game → Exit).
+    id: "flag-quiz",
+    category: "games",
+    title: "Flag Quiz",
+    icon: {
+      large: <Globe variant="32x32_4" />,
+      small: <Globe variant="16x16_4" />,
+    },
+    window: { width: 480, height: 500 },
+    component: dynamic(() => import("./flag-quiz/flag-quiz").then((m) => m.FlagQuiz)),
   },
   {
     // Must match PROGRAM_ID in notes.tsx (used by File → Exit).

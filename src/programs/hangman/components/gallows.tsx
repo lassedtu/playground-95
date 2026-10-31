@@ -3,13 +3,13 @@ export const MAX_MISSES = 6;
 
 /**
  * The gallows and stick figure, drawn in steps as `misses` goes up. Crisp
- * 2px lines in the Win95 palette; X eyes when the game is lost.
+ * 2px lines in the Win95 palette, X eyes when the game is lost.
  */
 export function Gallows({ misses, lost }: { misses: number; lost: boolean }) {
   const show = (step: number) => misses >= step;
   return (
     <svg viewBox="0 0 120 140" className="h-full max-h-56 w-auto" aria-hidden>
-      {/* Gallows (wood) */}
+      {/* Gallows */}
       <g stroke="#804000" strokeWidth="4" strokeLinecap="square" fill="none">
         <path d="M10 132h70M28 132V8h52M28 30l22-22" />
       </g>
@@ -34,7 +34,7 @@ export function Gallows({ misses, lost }: { misses: number; lost: boolean }) {
           <g fill="#000">
             <circle cx="75.5" cy="35.5" r="1.6" />
             <circle cx="84.5" cy="35.5" r="1.6" />
-            {/* Gets more worried with every miss. */}
+            {/* Gets more worried with each miss. */}
             <path
               d={misses >= 4 ? "M75 45q5-3 10 0" : "M75 43q5 3 10 0"}
               stroke="#000"

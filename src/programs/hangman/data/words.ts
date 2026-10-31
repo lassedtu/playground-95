@@ -1,5 +1,5 @@
 /**
- * Hangman words by category. Letters and spaces only; spaces are shown from
+ * Hangman words by category. Letters and spaces only, spaces are shown from
  * the start. Add categories or words freely.
  */
 export const CATEGORIES = {
