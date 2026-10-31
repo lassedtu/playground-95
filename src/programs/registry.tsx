@@ -1,6 +1,7 @@
 import dynamic from "next/dynamic";
 import { Camera } from "@react95/icons/Camera";
 import { Sol1 } from "@react95/icons/Sol1";
+import { Winmine1 } from "@react95/icons/Winmine1";
 
 import { EightBallIcon } from "./magic-8-ball/components/eight-ball-icon";
 import type { ProgramDefinition } from "./types";
@@ -45,6 +46,18 @@ export const programs: ProgramDefinition[] = [
     component: dynamic(() =>
       import("./magic-8-ball/magic-8-ball").then((m) => m.MagicEightBall),
     ),
+  },
+  {
+    // Must match PROGRAM_ID in minesweeper.tsx (used by Game → Exit).
+    id: "minesweeper",
+    title: "Minesweeper",
+    icon: {
+      large: <Winmine1 variant="32x32_4" />,
+      small: <Winmine1 variant="16x16_4" />,
+    },
+    // Fits Expert (30×16) at 16 px cells; smaller levels get bigger cells.
+    window: { width: 510, height: 370 },
+    component: dynamic(() => import("./minesweeper/minesweeper").then((m) => m.Minesweeper)),
   },
 ];
 
