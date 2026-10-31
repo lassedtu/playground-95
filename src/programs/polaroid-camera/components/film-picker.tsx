@@ -52,7 +52,7 @@ export function FilmPicker({ films, selectedId, onSelect, onCancel }: FilmPicker
               type="button"
               aria-pressed={selected}
               onClick={() => onSelect(film)}
-              className="group flex min-h-0 w-20 cursor-pointer flex-col items-center gap-1 border-0 bg-transparent p-0 outline-none"
+              className="group flex min-h-0 max-w-20 min-w-0 flex-1 cursor-pointer flex-col items-center gap-1 border-0 bg-transparent p-0 outline-none"
             >
               <span className="flex min-h-0 w-full flex-1 items-center justify-center">
                 <FilmPackSwatch film={film} />

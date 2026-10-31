@@ -13,6 +13,9 @@
   --animate-boot-bar: boot-bar 1.6s linear infinite;
   /* Indeterminate progress: a run of blocks sweeping through the track. */
   --animate-indeterminate: indeterminate 1.4s steps(28) infinite;
+  /* Magic 8-Ball: wobble while shaken (900ms, see SHAKE_MS), then the answer floats up. */
+  --animate-ball-shake: ball-shake 900ms ease-in-out;
+  --animate-answer-reveal: answer-reveal 1.2s ease-out both;
 }
 
 /*
@@ -44,6 +47,46 @@
   }
   to {
     transform: translateX(250%);
+  }
+}
+
+@keyframes ball-shake {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0);
+  }
+  15% {
+    transform: translate(-6%, 2%) rotate(-12deg);
+  }
+  30% {
+    transform: translate(6%, -3%) rotate(10deg);
+  }
+  45% {
+    transform: translate(-5%, 3%) rotate(-8deg);
+  }
+  60% {
+    transform: translate(4%, -2%) rotate(6deg);
+  }
+  75% {
+    transform: translate(-2%, 1%) rotate(-3deg);
+  }
+}
+
+/* The die rises out of the dark liquid: blurred and dim, then sharp. */
+@keyframes answer-reveal {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+    transform: translateY(18%) rotate(-8deg) scale(0.9);
+  }
+  60% {
+    opacity: 0.85;
+    filter: blur(1px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: none;
   }
 }
 
