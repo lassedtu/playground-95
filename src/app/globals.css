@@ -21,6 +21,8 @@
   /* 2048: new tiles grow in after the slide; merged tiles pulse. */
   --animate-tile-pop: tile-pop 180ms ease-out 80ms both;
   --animate-tile-merge: tile-merge 180ms ease-out 80ms;
+  /* Boss key: the "how to go back" hint shows for ~4 s, then fades away. */
+  --animate-boss-hint: boss-hint 4.5s ease-in both;
 }
 
 /*
@@ -162,5 +164,16 @@ body {
 @keyframes tile-merge {
   50% {
     transform: scale(1.12);
+  }
+}
+
+@keyframes boss-hint {
+  0%,
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    visibility: hidden;
   }
 }

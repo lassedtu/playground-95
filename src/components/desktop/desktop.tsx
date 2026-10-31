@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TaskBar } from "@react95/core";
 
+import { BossScreen } from "@/components/boss/boss-screen";
 import { initDisplaySettings } from "@/lib/display/display-settings";
+import { todaysLectureNote } from "@/programs/notes/lib/notes-store";
 import { programs } from "@/programs/registry";
 
 import { type DesktopApi, DesktopContext, type WindowSpec } from "./desktop-context";
@@ -11,9 +13,38 @@ import { DesktopIcon } from "./desktop-icon";
 import { DesktopWindow } from "./desktop-window";
 import { StartMenu } from "./start-menu";
 
+/** Two Esc presses within this many ms toggle the boss key. */
+const DOUBLE_ESCAPE_MS = 500;
+
 export function Desktop() {
   // Apply the saved theme and background as soon as the desktop starts.
   useEffect(() => initDisplaySettings(), []);
+
+  // Boss key: Esc twice in a row (anywhere) toggles the fake lecture notes.
+  const [bossNoteId, setBossNoteId] = useState<string | null>(null);
+  const bossOpen = useRef(false);
+  const toggleBoss = useCallback(() => {
+    bossOpen.current = !bossOpen.current;
+    // Looked up (or created) in the event, not during rendering: it writes to storage.
+    setBossNoteId(bossOpen.current ? todaysLectureNote() : null);
+  }, []);
+
+  useEffect(() => {
+    let lastEscape = 0;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.repeat) return;
+      const now = performance.now();
+      if (now - lastEscape < DOUBLE_ESCAPE_MS) {
+        lastEscape = 0;
+        toggleBoss();
+      } else {
+        lastEscape = now;
+      }
+    };
+    // Capture: works even while a program (or the notes editor) has focus.
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, [toggleBoss]);
 
   // Open windows, in the order they were opened.
   const [windows, setWindows] = useState<WindowSpec[]>([]);
@@ -63,7 +94,7 @@ export function Desktop() {
       <main className="relative h-dvh w-full overflow-hidden">
         <ul className="flex h-[calc(100%-28px)] flex-col flex-wrap content-start gap-2 p-2">
           {programs
-            .filter((program) => (program.placement ?? "programs") === "programs")
+            .filter((program) => program.category !== "settings")
             .map((program) => (
               <li key={program.id}>
                 <DesktopIcon program={program} onOpen={openProgram} />
@@ -80,8 +111,9 @@ export function Desktop() {
           />
         ))}
 
-        <TaskBar list={<StartMenu onOpen={openProgram} />} />
+        <TaskBar list={<StartMenu onOpen={openProgram} onBossKey={toggleBoss} />} />
       </main>
+      {bossNoteId && <BossScreen noteId={bossNoteId} onExit={toggleBoss} />}
     </DesktopContext>
   );
 }

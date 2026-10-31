@@ -22,6 +22,7 @@ import type { ProgramDefinition } from "./types";
 export const programs: ProgramDefinition[] = [
   {
     id: "polaroid-camera",
+    category: "programs",
     title: "Polaroid Camera",
     icon: {
       large: <Camera variant="32x32_4" />,
@@ -35,6 +36,7 @@ export const programs: ProgramDefinition[] = [
   {
     // Must match MEMORY_PROGRAM_ID in memory.tsx (used by Game -> Exit).
     id: "memory",
+    category: "games",
     title: "Memory",
     icon: {
       large: <Sol1 variant="32x32_4" />,
@@ -45,6 +47,7 @@ export const programs: ProgramDefinition[] = [
   },
   {
     id: "magic-8-ball",
+    category: "games",
     title: "Magic 8-Ball",
     icon: {
       large: <EightBallIcon size={32} />,
@@ -58,6 +61,7 @@ export const programs: ProgramDefinition[] = [
   {
     // Must match PROGRAM_ID in minesweeper.tsx (used by Game -> Exit).
     id: "minesweeper",
+    category: "games",
     title: "Minesweeper",
     icon: {
       large: <Winmine1 variant="32x32_4" />,
@@ -70,6 +74,7 @@ export const programs: ProgramDefinition[] = [
   {
     // Must match PROGRAM_ID in typing-test.tsx (used by Test -> Exit).
     id: "typing-test",
+    category: "games",
     title: "Typing Test",
     icon: {
       large: <KeyboardMouse variant="32x32_4" />,
@@ -82,6 +87,7 @@ export const programs: ProgramDefinition[] = [
   {
     // Must match PROGRAM_ID in paint.tsx (used by File -> Exit).
     id: "paint",
+    category: "programs",
     title: "Paint",
     icon: {
       large: <Mspaint variant="32x32_4" />,
@@ -93,6 +99,7 @@ export const programs: ProgramDefinition[] = [
   {
     // Must match PROGRAM_ID in word-guess.tsx (used by Game -> Exit).
     id: "word-guess",
+    category: "games",
     title: "Word Guess",
     icon: {
       large: <Wordpad variant="32x32_4" />,
@@ -104,6 +111,7 @@ export const programs: ProgramDefinition[] = [
   {
     // Must match PROGRAM_ID in game-2048.tsx (used by Game -> Exit).
     id: "game-2048",
+    category: "games",
     title: "2048",
     icon: {
       large: <Calculator variant="32x32_4" />,
@@ -115,6 +123,7 @@ export const programs: ProgramDefinition[] = [
   {
     // Must match PROGRAM_ID in reaction-test.tsx (used by Test → Exit).
     id: "reaction-test",
+    category: "games",
     title: "Reaction Test",
     icon: {
       large: <Timedate variant="32x32_4" />,
@@ -126,6 +135,7 @@ export const programs: ProgramDefinition[] = [
   {
     // Must match PROGRAM_ID in lecture-bingo.tsx (used by Game → Exit).
     id: "lecture-bingo",
+    category: "games",
     title: "Lecture Bingo",
     icon: {
       large: <BingoIcon size={32} />,
@@ -137,6 +147,7 @@ export const programs: ProgramDefinition[] = [
   {
     // Must match PROGRAM_ID in notes.tsx (used by File → Exit).
     id: "notes",
+    category: "programs",
     title: "Notes",
     icon: {
       large: <Notepad variant="32x32_4" />,
@@ -148,8 +159,8 @@ export const programs: ProgramDefinition[] = [
   {
     // Must match PROGRAM_ID in settings.tsx (used by OK / Cancel).
     id: "settings",
+    category: "settings",
     title: "Settings",
-    placement: "settings",
     icon: {
       large: <SettingsIcon variant="32x32_4" />,
       small: <SettingsIcon variant="16x16_4" />,

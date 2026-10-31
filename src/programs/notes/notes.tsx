@@ -9,7 +9,15 @@ import { StatusBar, StatusBarField } from "@/components/ui/status-bar";
 import { downloadUrl } from "@/lib/download";
 import { hasShortcutModifier, isApplePlatform } from "@/lib/platform";
 
-import { byUpdated, createNote, loadNotes, type Note, noteTitle, type NotesState, saveNotes } from "./lib/notes-store";
+import {
+  byUpdated,
+  createNote,
+  type Note,
+  noteTitle,
+  type NotesState,
+  setNotesState,
+  useNotesState,
+} from "./lib/notes-store";
 
 /** Must match the id in programs/registry.tsx (used by File → Exit). */
 const PROGRAM_ID = "notes";
@@ -36,7 +44,7 @@ function shortDate(time: number) {
 
 export function Notes() {
   const { closeWindow } = useDesktop();
-  const [state, setState] = useState<NotesState>(loadNotes);
+  const state = useNotesState();
   const [caret, setCaret] = useState(0);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [message, setMessage] = useState("");
@@ -55,8 +63,7 @@ export function Notes() {
   });
 
   function update(next: NotesState) {
-    setState(next);
-    setMessage(saveNotes(next) ? "" : "Couldn't save: the browser's storage is full.");
+    setMessage(setNotesState(next) ? "" : "Couldn't save: the browser's storage is full.");
   }
 
   function edit(text: string) {
