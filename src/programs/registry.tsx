@@ -14,6 +14,7 @@ import { Winmine1 } from "@react95/icons/Winmine1";
 import { HangmanIcon } from "./hangman/components/gallows";
 import { BingoIcon } from "./lecture-bingo/components/bingo-icon";
 import { EightBallIcon } from "./magic-8-ball/components/eight-ball-icon";
+import { TrafficJamIcon } from "./traffic-jam/components/traffic-jam-icon";
 import type { ProgramDefinition } from "./types";
 
 /**
@@ -169,6 +170,18 @@ export const programs: ProgramDefinition[] = [
     },
     window: { width: 480, height: 500 },
     component: dynamic(() => import("./flag-quiz/flag-quiz").then((m) => m.FlagQuiz)),
+  },
+  {
+    // Must match PROGRAM_ID in traffic-jam.tsx (used by Game → Exit).
+    id: "traffic-jam",
+    category: "games",
+    title: "Traffic Jam",
+    icon: {
+      large: <TrafficJamIcon size={32} />,
+      small: <TrafficJamIcon size={16} />,
+    },
+    window: { width: 400, height: 430 },
+    component: dynamic(() => import("./traffic-jam/traffic-jam").then((m) => m.TrafficJam)),
   },
   {
     // Must match PROGRAM_ID in notes.tsx (used by File → Exit).
