@@ -19,7 +19,7 @@ import {
   useNotesState,
 } from "./lib/notes-store";
 
-/** Must match the id in programs/registry.tsx (used by File → Exit). */
+/** Must match the id in programs/registry.tsx (used by File -> Exit). */
 const PROGRAM_ID = "notes";
 const APPLE = isApplePlatform();
 
@@ -194,9 +194,8 @@ export function Notes() {
                   aria-selected={selected}
                   tabIndex={selected ? 0 : -1}
                   onClick={() => select(n.id)}
-                  className={`cursor-default px-1 py-0.5 outline-none focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-dotted focus-visible:outline-current ${
-                    selected ? "bg-win-navy text-white" : ""
-                  }`}
+                  className={`cursor-default px-1 py-0.5 outline-none focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-dotted focus-visible:outline-current ${selected ? "bg-win-navy text-white" : ""
+                    }`}
                 >
                   <div className="truncate">{noteTitle(n)}</div>
                   <div className={`text-[10px] ${selected ? "text-white/80" : "text-[#808080]"}`}>{shortDate(n.updated)}</div>
@@ -221,9 +220,8 @@ export function Notes() {
             onClick={trackCaret}
             spellCheck
             wrap={state.wordWrap ? "soft" : "off"}
-            className={`min-h-0 flex-1 resize-none border-0 bg-transparent p-1 font-mono text-[13px] leading-snug text-black outline-none ${
-              state.wordWrap ? "whitespace-pre-wrap" : "overflow-x-auto whitespace-pre"
-            }`}
+            className={`min-h-0 flex-1 resize-none border-0 bg-transparent p-1 font-mono text-[13px] leading-snug text-black outline-none ${state.wordWrap ? "whitespace-pre-wrap" : "overflow-x-auto whitespace-pre"
+              }`}
           />
         </Frame>
 

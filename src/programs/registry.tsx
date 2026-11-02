@@ -14,6 +14,7 @@ import { Winmine1 } from "@react95/icons/Winmine1";
 import { HangmanIcon } from "./hangman/components/gallows";
 import { BingoIcon } from "./lecture-bingo/components/bingo-icon";
 import { EightBallIcon } from "./magic-8-ball/components/eight-ball-icon";
+import { ThreeFourGoIcon } from "./three-four-go/components/three-four-go-icon";
 import { TrafficJamIcon } from "./traffic-jam/components/traffic-jam-icon";
 import type { ProgramDefinition } from "./types";
 
@@ -124,7 +125,7 @@ export const programs: ProgramDefinition[] = [
     component: dynamic(() => import("./game-2048/game-2048").then((m) => m.Game2048)),
   },
   {
-    // Must match PROGRAM_ID in reaction-test.tsx (used by Test → Exit).
+    // Must match PROGRAM_ID in reaction-test.tsx (used by Test -> Exit).
     id: "reaction-test",
     category: "games",
     title: "Reaction Test",
@@ -136,7 +137,7 @@ export const programs: ProgramDefinition[] = [
     component: dynamic(() => import("./reaction-test/reaction-test").then((m) => m.ReactionTest)),
   },
   {
-    // Must match PROGRAM_ID in lecture-bingo.tsx (used by Game → Exit).
+    // Must match PROGRAM_ID in lecture-bingo.tsx (used by Game -> Exit).
     id: "lecture-bingo",
     category: "games",
     title: "Lecture Bingo",
@@ -148,7 +149,7 @@ export const programs: ProgramDefinition[] = [
     component: dynamic(() => import("./lecture-bingo/lecture-bingo").then((m) => m.LectureBingo)),
   },
   {
-    // Must match PROGRAM_ID in hangman.tsx (used by Game → Exit).
+    // Must match PROGRAM_ID in hangman.tsx (used by Game -> Exit).
     id: "hangman",
     category: "games",
     title: "Hangman",
@@ -160,7 +161,7 @@ export const programs: ProgramDefinition[] = [
     component: dynamic(() => import("./hangman/hangman").then((m) => m.Hangman)),
   },
   {
-    // Must match PROGRAM_ID in flag-quiz.tsx (used by Game → Exit).
+    // Must match PROGRAM_ID in flag-quiz.tsx (used by Game -> Exit).
     id: "flag-quiz",
     category: "games",
     title: "Flag Quiz",
@@ -172,7 +173,7 @@ export const programs: ProgramDefinition[] = [
     component: dynamic(() => import("./flag-quiz/flag-quiz").then((m) => m.FlagQuiz)),
   },
   {
-    // Must match PROGRAM_ID in traffic-jam.tsx (used by Game → Exit).
+    // Must match PROGRAM_ID in traffic-jam.tsx (used by Game -> Exit).
     id: "traffic-jam",
     category: "games",
     title: "Traffic Jam",
@@ -184,7 +185,20 @@ export const programs: ProgramDefinition[] = [
     component: dynamic(() => import("./traffic-jam/traffic-jam").then((m) => m.TrafficJam)),
   },
   {
-    // Must match PROGRAM_ID in notes.tsx (used by File → Exit).
+    // Must match PROGRAM_ID in three-four-go.tsx (used by Race -> Exit).
+    id: "three-four-go",
+    category: "games",
+    title: "3-4-Go!",
+    icon: {
+      large: <ThreeFourGoIcon size={32} />,
+      small: <ThreeFourGoIcon size={16} />,
+    },
+    // Room for the 320×200 view at 2×.
+    window: { width: 660, height: 470 },
+    component: dynamic(() => import("./three-four-go/three-four-go").then((m) => m.ThreeFourGo)),
+  },
+  {
+    // Must match PROGRAM_ID in notes.tsx (used by File -> Exit).
     id: "notes",
     category: "programs",
     title: "Notes",

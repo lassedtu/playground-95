@@ -17,7 +17,7 @@ import { applyMove, boardKey, isSolved, type Move, parseBoard, type Piece, SIZE,
 import { dailyResult, loadProgress, recordDaily, recordLevel, type Result, saveCurrentLevel } from "./lib/progress";
 import { dailyNumber, dayNumber, formatTime, type Mode, modeTitle, puzzleFor, vehicleLooks } from "./lib/puzzles";
 
-/** Must match the id in programs/registry.tsx (used by Game → Exit). */
+/** Must match the id in programs/registry.tsx (used by Game -> Exit). */
 const PROGRAM_ID = "traffic-jam";
 /** Cell size limits in px; cells grow to fill the window, within these. */
 const MIN_CELL = 28;

@@ -14,7 +14,7 @@ export const lotSize = (cell: number) => ({ width: SIZE * cell + 2 * BORDER + EX
 
 const COLOURS = new Set(["red", "blue", "green", "yellow", "white", "black", "magenta", "brown"]);
 
-/** "sedan-blue" → "blue sedan". */
+/** "sedan-blue" -> "blue sedan". */
 function vehicleName(look: Look, index: number) {
   if (index === 0) return "red car";
   const words = look.sprite.name.split("-");

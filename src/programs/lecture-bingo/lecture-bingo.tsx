@@ -9,7 +9,7 @@ import { StatusBar, StatusBarField } from "@/components/ui/status-bar";
 
 import { cardFor, CENTER, completedLines, normalizeCode, randomCode, SIZE } from "./lib/card";
 
-/** Must match the id in programs/registry.tsx (used by Game → Exit). */
+/** Must match the id in programs/registry.tsx (used by Game -> Exit). */
 const PROGRAM_ID = "lecture-bingo";
 const STORAGE_KEY = "playground95.lecture-bingo";
 
