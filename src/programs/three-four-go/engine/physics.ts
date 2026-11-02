@@ -70,12 +70,14 @@ export function stepCar(car: Car, input: CarInput, surface: Surface, dt: number)
   let forward = dot(car.v, h);
   let sideways = dot(car.v, r);
 
-  // 3. Gas and brake.
+  // 3. Gas and brake. Drifting with the gas on is a little faster.
   if (input.throttle > 0) {
+    const top = car.drift ? maxSpeed * CAR.driftSpeed : maxSpeed;
+    const push = car.drift ? CAR.driftPush * input.throttle * Math.max(0, 1 - forward / top) : 0;
     forward =
       forward < -1
         ? Math.min(0, forward + CAR.brake * dt)
-        : forward + CAR.accel * input.throttle * (1 - forward / maxSpeed) * dt;
+        : forward + (CAR.accel * input.throttle * (1 - forward / top) + push) * dt;
   } else if (input.brake > 0) {
     forward =
       forward > 1

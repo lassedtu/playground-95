@@ -36,6 +36,9 @@ export const CAR = {
   /** A drift starts above this share of top speed and ends below `driftEnd`. */
   driftStart: 0.4,
   driftEnd: 0.25,
+  /** While drifting with the gas on: top speed ×, and extra push forwards (units/s²). */
+  driftSpeed: 1.1,
+  driftPush: 30,
 } as const;
 
 export const CAMERA = {
