@@ -13,16 +13,24 @@ const MAX_LEAN = 0.8;
 /** Decoded sprite sheets, by vehicle name. */
 export type SpriteSheets = Map<string, HTMLImageElement>;
 
+/** Sheets already loaded (or loading), so a new race doesn't fetch them again. */
+const cache = new Map<string, Promise<HTMLImageElement>>();
+
+function loadSheet(vehicle: Vehicle) {
+  let image = cache.get(vehicle.name);
+  if (!image) {
+    const element = new Image();
+    element.src = vehicle.sheet.src;
+    image = element.decode().then(() => element);
+    image.catch(() => cache.delete(vehicle.name));
+    cache.set(vehicle.name, image);
+  }
+  return image;
+}
+
 export async function loadSpriteSheets(vehicles: readonly Vehicle[]): Promise<SpriteSheets> {
   const unique = [...new Map(vehicles.map((v) => [v.name, v])).values()];
-  const images = await Promise.all(
-    unique.map(async (vehicle) => {
-      const image = new Image();
-      image.src = vehicle.sheet.src;
-      await image.decode();
-      return [vehicle.name, image] as const;
-    }),
-  );
+  const images = await Promise.all(unique.map(async (vehicle) => [vehicle.name, await loadSheet(vehicle)] as const));
   return new Map(images);
 }
 

@@ -104,7 +104,7 @@ const SUNDAY: Personality = {
 
 /** One per CPU on the grid. */
 export const CPU_DRIVERS: readonly { name: string; personality: Personality }[] = [
-  { name: "Task Manager", personality: PRO },
+  { name: "Ana", personality: PRO },
   { name: "Clippy", personality: RECKLESS },
   { name: "Rufus", personality: RECKLESS },
   { name: "Bonzi", personality: CAREFUL },

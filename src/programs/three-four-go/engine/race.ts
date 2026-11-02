@@ -188,3 +188,26 @@ export function formatTime(seconds: number) {
   const rest = tenths - minutes * 600;
   return `${minutes}:${String(Math.floor(rest / 10)).padStart(2, "0")}.${rest % 10}`;
 }
+
+/** Racer indexes from first to last: finished cars by time, the rest by how far round they are. */
+export function standings(race: Race): number[] {
+  return race.racers
+    .map((racer, index) => ({ index, finished: racer.finished, progress: progress(race, racer) }))
+    .sort((a, b) =>
+      a.finished !== null && b.finished !== null
+        ? a.finished - b.finished
+        : a.finished !== null
+          ? -1
+          : b.finished !== null
+            ? 1
+            : b.progress - a.progress,
+    )
+    .map((r) => r.index);
+}
+
+/** 1 → "1st", 2 → "2nd", … */
+export function ordinal(n: number) {
+  const tens = n % 100;
+  const suffix = tens >= 11 && tens <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] ?? "th";
+  return `${n}${suffix}`;
+}

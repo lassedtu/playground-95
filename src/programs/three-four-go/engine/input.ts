@@ -16,7 +16,12 @@ const GAME_KEYS = new Set([
   "KeyP",
 ]);
 
-export type Keyboard = { isDown(code: string): boolean; dispose(): void };
+export type Keyboard = {
+  isDown(code: string): boolean;
+  /** For on-screen buttons: hold or release a key as if it were pressed. */
+  press(code: string, down: boolean): void;
+  dispose(): void;
+};
 
 /** The player's controls: arrows or WASD, Shift or Space to drift. */
 export function readPlayerInput(keyboard: Keyboard): CarInput {
@@ -42,12 +47,14 @@ export function createKeyboard(target: HTMLElement): Keyboard {
     down.add(event.code);
   };
   const onKeyUp = (event: KeyboardEvent) => down.delete(event.code);
+  // Touch buttons hold keys too; losing focus (e.g. switching apps) releases everything.
   const onBlur = () => down.clear();
   target.addEventListener("keydown", onKeyDown);
   target.addEventListener("keyup", onKeyUp);
   target.addEventListener("blur", onBlur);
   return {
     isDown: (code) => down.has(code),
+    press: (code, held) => (held ? down.add(code) : down.delete(code)),
     dispose() {
       target.removeEventListener("keydown", onKeyDown);
       target.removeEventListener("keyup", onKeyUp);
