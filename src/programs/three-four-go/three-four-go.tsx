@@ -55,6 +55,13 @@ export function ThreeFourGo() {
               <p className="m-0 font-bold">3-4-Go!</p>
               <p className="m-0">A kart racer for Windows 95, drawn the old-fashioned way: a flat map tilted into 3D.</p>
               <p className="m-0">Under construction: for now you can drive (and drift) around Desktop Circuit.</p>
+              <p className="m-0">
+                Cars rendered from &quot;Low Poly Cars&quot; by{" "}
+                <a href="https://cosmo-art.itch.io" target="_blank" rel="noreferrer" className="text-[#0000ff] underline">
+                  Cosmo
+                </a>{" "}
+                (CC0).
+              </p>
               <div className="flex justify-center">
                 <Button onClick={() => setPanel("none")}>OK</Button>
               </div>

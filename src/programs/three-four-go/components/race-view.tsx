@@ -7,14 +7,15 @@ import { useElementVisible } from "@/lib/use-element-visible";
 
 import { SURFACE } from "../data/palette";
 import { TRACKS } from "../data/tracks";
+import { VEHICLES } from "../data/vehicles";
 import { makeDefaultSky, makeOutsideTile, SKY_BOTTOM } from "../engine/backdrop";
 import { type Camera, cameraBehind, followCar, lerpCamera, VIEW_HEIGHT, VIEW_WIDTH } from "../engine/camera";
-import { makeCar } from "../engine/car";
-import { drawCarDebug, drawCarPlaceholder } from "../engine/draw-car";
+import { type Car, makeCar } from "../engine/car";
 import { createKeyboard, readPlayerInput } from "../engine/input";
 import { createLoop, type Loop } from "../engine/loop";
 import { drawGround, drawSky, type Fog } from "../engine/mode7";
 import { bounceOffWall, stepCar, SURFACES } from "../engine/physics";
+import { type CarPose, drawCars, loadSpriteSheets, type SpriteSheets } from "../engine/sprites";
 import { loadTrack, surfaceAt, type Track } from "../engine/track";
 import { dot, fromAngle, length, lerp, wrapAngle } from "../engine/vector";
 
@@ -40,6 +41,7 @@ function startDriving(
   canvas: HTMLCanvasElement,
   ctx: CanvasRenderingContext2D,
   track: Track,
+  sheets: SpriteSheets,
   options: { current: ViewOptions },
   onStats: { current: (stats: ViewStats) => void },
   loopRef: { current: Loop | null },
@@ -52,7 +54,12 @@ function startDriving(
   const keyboard = createKeyboard(canvas);
 
   const pole = track.start[0];
-  const car = makeCar(pole.x, pole.y, pole.angle);
+  const car = makeCar(VEHICLES[0], pole.x, pole.y, pole.angle);
+  // Parked cars on the rest of the grid, each turned a different way, to
+  // check the sprites from every angle (they become CPU drivers later).
+  const parked = track.start
+    .slice(1)
+    .map((slot, i) => makeCar(VEHICLES[(i + 1) % VEHICLES.length], slot.x, slot.y, slot.angle + ((i + 1) * Math.PI) / 4));
   let previousCamera: Camera = cameraBehind(car);
   let camera: Camera = previousCamera;
   let frames = 0;
@@ -64,16 +71,18 @@ function startDriving(
     camera = followCar(camera, car, dt);
   };
 
+  const pose = (c: Car, alpha: number): CarPose => ({
+    car: c,
+    p: { x: lerp(c.previous.p.x, c.p.x, alpha), y: lerp(c.previous.p.y, c.p.y, alpha) },
+    heading: c.previous.heading + wrapAngle(c.heading - c.previous.heading) * alpha,
+  });
+
   const render = (alpha: number) => {
     const view = lerpCamera(previousCamera, camera, alpha);
     drawSky(pixels, sky, view);
     drawGround(pixels, options.current.logic ? track.logicImage : track.ground, outside, view, FOG);
     ctx.putImageData(image, 0, 0);
-
-    const p = { x: lerp(car.previous.p.x, car.p.x, alpha), y: lerp(car.previous.p.y, car.p.y, alpha) };
-    const heading = car.previous.heading + wrapAngle(car.heading - car.previous.heading) * alpha;
-    drawCarPlaceholder(ctx, view, car, p, heading);
-    if (options.current.hitboxes) drawCarDebug(ctx, view, car, p, heading);
+    drawCars(ctx, view, [car, ...parked].map((c) => pose(c, alpha)), sheets, options.current.hitboxes);
     frames++;
   };
 
@@ -146,9 +155,9 @@ export function RaceView({ options, onStats }: RaceViewProps) {
     let cancelled = false;
     drawMessage(ctx, "Loading track…");
     canvas.focus();
-    loadTrack(TRACKS[0]).then(
-      (track) => {
-        if (!cancelled) stop = startDriving(canvas, ctx, track, optionsRef, onStatsRef, loopRef, visibleNow);
+    Promise.all([loadTrack(TRACKS[0]), loadSpriteSheets(VEHICLES.slice(0, TRACKS[0].start.length))]).then(
+      ([track, sheets]) => {
+        if (!cancelled) stop = startDriving(canvas, ctx, track, sheets, optionsRef, onStatsRef, loopRef, visibleNow);
       },
       () => !cancelled && drawMessage(ctx, "Couldn't load the track."),
     );

@@ -1,4 +1,4 @@
-import { type Camera, VIEW_HEIGHT, VIEW_WIDTH } from "./camera";
+import { type Camera, horizonRow, VIEW_HEIGHT, VIEW_WIDTH } from "./camera";
 import type { Texture } from "./texture";
 
 /** Distant ground fades into this colour (usually the sky's lowest row). */
@@ -12,7 +12,7 @@ export type Fog = { color: number; start: number; end: number };
  */
 export function drawSky(out: Uint32Array, sky: Texture, camera: Camera) {
   const { width, height, pixels } = sky;
-  const horizon = Math.min(VIEW_HEIGHT, camera.horizon);
+  const horizon = Math.min(VIEW_HEIGHT, Math.ceil(horizonRow(camera)));
   // Sky pixels per screen pixel, and where the screen's centre column points.
   const scale = width / (2 * Math.PI * camera.focal);
   const centre = (camera.angle / (2 * Math.PI)) * width;
@@ -28,9 +28,9 @@ export function drawSky(out: Uint32Array, sky: Texture, camera: Camera) {
 
 /**
  * The ground below the horizon (Mode 7): each screen row is a straight line
- * across the map at a distance that depends on the row, so the map is
- * sampled along that line, nearest pixel. Points off the map show `outside`
- * repeated (its size must be a power of two).
+ * across the map, at a distance that depends on the row and the camera's
+ * tilt, so the map is sampled along that line, nearest pixel. Points off the
+ * map show `outside` repeated (its size must be a power of two).
  */
 export function drawGround(out: Uint32Array, ground: Texture, outside: Texture, camera: Camera, fog: Fog) {
   const { width, height, pixels } = ground;
@@ -41,14 +41,22 @@ export function drawGround(out: Uint32Array, ground: Texture, outside: Texture, 
   // Screen-right on the map (map y points down).
   const rightX = -dirY;
   const rightY = dirX;
+  const cosPitch = Math.cos(camera.pitch);
+  const sinPitch = Math.sin(camera.pitch);
   const fogR = fog.color & 0xff;
   const fogG = (fog.color >>> 8) & 0xff;
   const fogB = (fog.color >>> 16) & 0xff;
 
-  for (let y = Math.max(0, camera.horizon); y < VIEW_HEIGHT; y++) {
-    const distance = (camera.height * camera.focal) / (y + 0.5 - camera.horizon);
-    const stepX = (rightX * distance) / camera.focal;
-    const stepY = (rightY * distance) / camera.focal;
+  for (let y = Math.max(0, Math.floor(horizonRow(camera))); y < VIEW_HEIGHT; y++) {
+    // The ray through this row, in the camera's (tilted) frame: f forwards, `down` downwards.
+    const down = y + 0.5 - VIEW_HEIGHT / 2;
+    const falling = camera.focal * sinPitch + down * cosPitch;
+    if (falling <= 0) continue; // at or above the horizon
+    // Map units per screen pixel along this row, and how far ahead the row is.
+    const unit = camera.height / falling;
+    const distance = unit * (camera.focal * cosPitch - down * sinPitch);
+    const stepX = rightX * unit;
+    const stepY = rightY * unit;
     let wx = camera.x + dirX * distance - stepX * (VIEW_WIDTH / 2 - 0.5);
     let wy = camera.y + dirY * distance - stepY * (VIEW_WIDTH / 2 - 0.5);
     // Fog amount for the whole row, 0–256.

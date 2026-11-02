@@ -1,0 +1,171 @@
+#!/usr/bin/env node
+/**
+ * Renders 3-4-Go!'s car sprites from the "Low Poly Cars" pack by Cosmo
+ * (https://cosmo-art.itch.io, CC0) and writes
+ * src/programs/three-four-go/data/vehicles.ts. Needs Blender (set $BLENDER
+ * if it isn't in /Applications) and ImageMagick (`magick`).
+ *
+ *   node scripts/three-four-go/render-vehicles.mjs ["path/to/lowpoly_cars_free"]
+ *
+ * Each car is rendered by render-vehicle.py at 48 rotations × a few viewing
+ * heights, so the game can show it from (nearly) the angle the camera really
+ * sees it at. All frames of a car are cropped to one shared box and packed
+ * into one WebP: one row per viewing height, 48 frames per row. The car's
+ * centre on the ground is at the same spot in every frame (the anchor).
+ */
+import { execFileSync } from "node:child_process";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const root = fileURLToPath(new URL("../../", import.meta.url));
+const pack = process.argv[2] ?? join(root, "lowpoly_cars_free");
+const program = join(root, "src/programs/three-four-go");
+const assets = join(program, "assets/vehicles");
+const blender = process.env.BLENDER ?? "/Applications/Blender.app/Contents/MacOS/Blender";
+const work = join(tmpdir(), "three-four-go-renders");
+
+/** First entry is the default player car. */
+const ROSTER = [
+  { name: "italia", label: "Italia" },
+  { name: "coupe", label: "Coupe" },
+  { name: "fenyr", label: "Fenyr" },
+  { name: "ghini", label: "Ghini" },
+  { name: "lamb", label: "Lamb" },
+  { name: "kamaro", label: "Kamaro" },
+  { name: "rally", label: "Rally" },
+  { name: "police", label: "Police" },
+  { name: "mobil", label: "Mobil" },
+  { name: "jeep", label: "Jeep" },
+  { name: "van", label: "Van" },
+  { name: "armor", label: "Armor" },
+];
+const FRAMES = 48;
+/**
+ * Viewing heights (degrees above the ground). The camera sees the player's
+ * car from ~28°; cars further ahead from lower down.
+ */
+const ELEVATIONS = [6, 12, 19, 28];
+const OPTIONS = {
+  frames: FRAMES,
+  elevations: ELEVATIONS,
+  /** Sprite pixels per map unit; the player's car is drawn at ~7.4. */
+  pixelsPerUnit: 8,
+  /** Scale: the coupe (4.8 m) ends up 14 units long, like the old sedan. */
+  unitsPerMeter: 2.9,
+  /** Which way the cars' noses point after import. */
+  forward: "-y",
+};
+/** Mass is relative to the coupe's footprint. */
+const REFERENCE = "coupe";
+
+rmSync(work, { recursive: true, force: true });
+rmSync(assets, { recursive: true, force: true });
+mkdirSync(assets, { recursive: true });
+
+const cars = ROSTER.map((car) => {
+  const out = join(work, car.name);
+  process.stdout.write(`Rendering ${car.name}… `);
+  execFileSync(
+    blender,
+    ["-b", "--factory-startup", "--python", join(root, "scripts/three-four-go/render-vehicle.py"), "--",
+      join(pack, "GLTF", `${car.name}.glb`), out, JSON.stringify(OPTIONS)],
+    { stdio: ["ignore", "ignore", "inherit"] },
+  );
+  const info = JSON.parse(readFileSync(join(out, "info.json"), "utf8"));
+  const files = ELEVATIONS.flatMap((_, e) =>
+    Array.from({ length: FRAMES }, (_, k) => join(out, `e${e}_${String(k).padStart(2, "0")}.png`)),
+  );
+  // Shared crop box: the union of every frame's visible pixels.
+  const union = execFileSync("magick", [...files, "-background", "none", "-flatten", "-format", "%@", "info:"]).toString();
+  const [, w, h, x, y] = union.match(/(\d+)x(\d+)\+(\d+)\+(\d+)/).map(Number);
+  console.log(`${w}×${h} per frame`);
+  return { ...car, ...info, out, files, box: { x, y, width: w, height: h } };
+});
+
+const reference = cars.find((car) => car.name === REFERENCE);
+const imports = [];
+const entries = cars.map((car) => {
+  const { box } = car;
+  const file = `${car.name}.webp`;
+  const rows = ELEVATIONS.map((_, e) => [
+    "(",
+    ...car.files.slice(e * FRAMES, (e + 1) * FRAMES).map((f) => `${f}[${box.width}x${box.height}+${box.x}+${box.y}]`),
+    "+repage",
+    "+append",
+    ")",
+  ]);
+  execFileSync("magick", [
+    ...rows.flat(),
+    "-background", "none",
+    "-append",
+    // 64 colours per car, lossless: about the size of lossy q80 (~4× smaller
+    // than full colour) and the hard pixel edges stay exact.
+    "+dither", "-colors", "64",
+    "-define", "webp:lossless=true",
+    join(assets, file),
+  ]);
+  const id = car.name.replace(/-(\w)/g, (_, c) => c.toUpperCase());
+  imports.push(`import ${id} from "../assets/vehicles/${file}";`);
+  const round = (n) => Math.round(n * 100) / 100;
+  return `  {
+    name: "${car.name}",
+    label: "${car.label}",
+    sheet: ${id},
+    frameWidth: ${box.width},
+    frameHeight: ${box.height},
+    anchorX: ${car.size / 2 - box.x},
+    anchorY: ${car.size / 2 - box.y},
+    length: ${round(car.length)},
+    width: ${round(car.width)},
+    mass: ${round((car.length * car.width) / (reference.length * reference.width))},
+  },`;
+});
+
+writeFileSync(
+  join(program, "data/vehicles.ts"),
+  `/**
+ * Generated by scripts/three-four-go/render-vehicles.mjs, don't edit by hand.
+ *
+ * Rendered from "Low Poly Cars" by Cosmo (https://cosmo-art.itch.io),
+ * CC0 1.0 (public domain).
+ */
+import type { StaticImageData } from "next/image";
+
+${imports.join("\n")}
+
+export type Vehicle = {
+  name: string;
+  label: string;
+  /**
+   * One row per entry in ELEVATIONS, FRAMES frames per row, each frameWidth
+   * × frameHeight. Frame k points k·(360/FRAMES)° clockwise on screen from
+   * pointing right: frame ${FRAMES / 4} faces the viewer, frame ${(FRAMES * 3) / 4} drives away.
+   */
+  sheet: StaticImageData;
+  frameWidth: number;
+  frameHeight: number;
+  /** Where the car's centre on the ground is in every frame, in frame pixels. */
+  anchorX: number;
+  anchorY: number;
+  /** Hitbox in map units, and mass relative to the coupe. */
+  length: number;
+  width: number;
+  mass: number;
+};
+
+export const FRAMES = ${FRAMES};
+/** Viewing heights the sprites are rendered at (radians above the ground), lowest first. */
+export const ELEVATIONS: readonly number[] = ${JSON.stringify(ELEVATIONS.map((d) => Math.round((d * Math.PI * 10000) / 180) / 10000))};
+/** Sprite pixels per map unit (the same for every car). */
+export const PIXELS_PER_UNIT = ${OPTIONS.pixelsPerUnit};
+
+/** First one is the default player car. */
+export const VEHICLES: readonly Vehicle[] = [
+${entries.join("\n")}
+];
+`,
+);
+rmSync(work, { recursive: true, force: true });
+console.log(cars.map((c) => `${c.name}: ${c.length.toFixed(1)}×${c.width.toFixed(1)}`).join(", "));

@@ -1,13 +1,9 @@
 /**
  * Every number that decides how driving feels, in one place. Units: map
- * pixels (1 map pixel = 1 unit), seconds, radians.
+ * pixels (1 map pixel = 1 unit), seconds, radians. Hitbox sizes and masses
+ * come with the cars (data/vehicles.ts).
  */
 export const CAR = {
-  /** Hitbox; a sedan. Per-model sizes come with the sprites. */
-  length: 14,
-  width: 7,
-  mass: 1,
-
   /** Acceleration from standstill; it fades to 0 towards `maxSpeed`. */
   accel: 150,
   /** Top speed on road (drag keeps the real top speed a bit lower). */
@@ -44,10 +40,13 @@ export const CAR = {
 
 export const CAMERA = {
   /** How far behind the car, and how high. */
-  distance: 36,
-  height: 13,
-  /** Screen row of the horizon (of 200). */
-  horizon: 64,
+  distance: 34,
+  height: 18,
+  /**
+   * Tilt down (radians). With this height and distance the car is seen from
+   * about 28° above, close to the 35° the car sprites are drawn from.
+   */
+  pitch: (15 * Math.PI) / 180,
   /** Time constant for the camera's angle catching up with the car (s). */
   lag: 0.15,
   /** Below this speed the camera follows the heading instead of the movement. */

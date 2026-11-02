@@ -1,4 +1,4 @@
-import { CAR } from "../data/tuning";
+import type { Vehicle } from "../data/vehicles";
 import type { Vec2 } from "./vector";
 
 /**
@@ -6,6 +6,8 @@ import type { Vec2 } from "./vector";
  * where it's actually going (`v`). They differ while sliding, which makes drifting possible.
  */
 export type Car = {
+  /** Which car it is: sprites, hitbox size and mass. */
+  vehicle: Vehicle;
   /** Centre of the hitbox. */
   p: Vec2;
   /** Angle the car points at (0 = +x, π/2 = +y). */
@@ -14,6 +16,7 @@ export type Car = {
   v: Vec2;
   length: number;
   width: number;
+  /** Relative to the sedan (1). */
   mass: number;
   /** 0 when not drifting, otherwise the side it drifts to (−1 left, 1 right). */
   drift: -1 | 0 | 1;
@@ -35,14 +38,15 @@ export type CarInput = {
 
 export const NO_INPUT: CarInput = { throttle: 0, brake: 0, steer: 0, drift: false };
 
-export function makeCar(x: number, y: number, heading: number): Car {
+export function makeCar(vehicle: Vehicle, x: number, y: number, heading: number): Car {
   return {
+    vehicle,
     p: { x, y },
     heading,
     v: { x: 0, y: 0 },
-    length: CAR.length,
-    width: CAR.width,
-    mass: CAR.mass,
+    length: vehicle.length,
+    width: vehicle.width,
+    mass: vehicle.mass,
     drift: 0,
     previous: { p: { x, y }, heading },
   };
