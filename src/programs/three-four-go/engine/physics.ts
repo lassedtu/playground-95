@@ -1,4 +1,5 @@
 import { CAR } from "../data/tuning";
+import { SURFACE, type SurfaceCode } from "../data/palette";
 import type { Car, CarInput } from "./car";
 import { dot, fromAngle, lerp, right } from "./vector";
 
@@ -13,6 +14,22 @@ export type Surface = {
 };
 
 export const ROAD: Surface = { max: 1, grip: 1, drag: 0 };
+
+/**
+ * Handling per surface. Walls are solid (handled separately), out of bounds
+ * drives like grass until respawning is added. Finish line and checkpoints
+ * never show up here (they take the surface under them).
+ */
+export const SURFACES: Record<SurfaceCode, Surface> = {
+  [SURFACE.road]: ROAD,
+  [SURFACE.grass]: { max: 0.5, grip: 0.8, drag: 1.2 },
+  [SURFACE.dirt]: { max: 0.75, grip: 0.6, drag: 0.5 },
+  [SURFACE.wall]: ROAD,
+  [SURFACE.out]: { max: 0.5, grip: 0.8, drag: 1.2 },
+  [SURFACE.finish]: ROAD,
+  [SURFACE.checkpoint]: ROAD,
+  [SURFACE.boost]: ROAD,
+};
 
 /**
  * One physics tick for one car.
@@ -83,15 +100,13 @@ export function stepCar(car: Car, input: CarInput, surface: Surface, dt: number)
   car.p = { x: car.p.x + car.v.x * dt, y: car.p.y + car.v.y * dt };
 }
 
-/** Keeps a car on the map (walls come with real tracks). */
-export function keepInside(car: Car, width: number, height: number) {
-  const margin = car.length / 2;
-  if (car.p.x < margin || car.p.x > width - margin) {
-    car.p.x = Math.min(width - margin, Math.max(margin, car.p.x));
-    car.v = { x: 0, y: car.v.y };
-  }
-  if (car.p.y < margin || car.p.y > height - margin) {
-    car.p.y = Math.min(height - margin, Math.max(margin, car.p.y));
-    car.v = { x: car.v.x, y: 0 };
-  }
+/**
+ * Stand-in for wall collisions (proper ones come later): if the car's centre
+ * ends up in a wall, it goes back to where it was and bounces off softly.
+ */
+export function bounceOffWall(car: Car, inWall: boolean) {
+  if (!inWall) return;
+  car.p = { ...car.previous.p };
+  car.v = { x: car.v.x * -0.3, y: car.v.y * -0.3 };
+  car.drift = 0;
 }
