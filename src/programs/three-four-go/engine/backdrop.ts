@@ -2,8 +2,10 @@ import { GRASS_SQUARE, grassAt } from "../data/ground-style";
 import { seededRandom } from "./random";
 import { makeCanvas, rgb, type Texture, textureFromCanvas } from "./texture";
 
-/** The sky's lowest colour; distant ground fades into it. */
+/** The sky's lowest colour (#b4d4f0); distant ground fades into it. */
 export const SKY_BOTTOM = rgb(0xb4, 0xd4, 0xf0);
+/** Rows of haze at the bottom of the sky strip, over the hills. */
+const HAZE = 14;
 
 /** Grass beyond the map's edge, tiled; lines up with the painted grass on the map. */
 export function makeOutsideTile(): Texture {
@@ -61,6 +63,15 @@ export function makeDefaultSky(): Texture {
   };
   hills(height - 14, 6, [3, 7, 13], "#7d9cb4");
   hills(height - 5, 4, [5, 11, 19], "#3f7f3a");
+
+  // Haze over the foot of the hills, ending in the fog colour, so they fade
+  // into the far ground (which fades into the same colour) instead of
+  // stopping at a hard line.
+  const haze = ctx.createLinearGradient(0, height - HAZE, 0, height);
+  haze.addColorStop(0, "rgb(180 212 240 / 0)");
+  haze.addColorStop(1, "rgb(180 212 240 / 1)");
+  ctx.fillStyle = haze;
+  ctx.fillRect(0, height - HAZE, width, HAZE);
 
   return textureFromCanvas(canvas);
 }

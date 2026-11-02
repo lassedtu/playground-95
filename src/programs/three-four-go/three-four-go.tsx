@@ -1,13 +1,14 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Button, Frame } from "@react95/core";
 
 import { useDesktop } from "@/components/desktop/desktop-context";
 import { type Menu, MenuBar } from "@/components/ui/menu-bar";
 import { StatusBar, StatusBarField } from "@/components/ui/status-bar";
 
-import { RaceView, type ViewOptions, type ViewStats } from "./components/race-view";
+import { type RaceControls, RaceView, type ViewOptions, type ViewStats } from "./components/race-view";
+import { formatTime } from "./engine/race";
 
 /** Must match the id in programs/registry.tsx (used by Race -> Exit). */
 const PROGRAM_ID = "three-four-go";
@@ -19,11 +20,20 @@ export function ThreeFourGo() {
   const [panel, setPanel] = useState<Panel>("none");
   const [stats, setStats] = useState<ViewStats | null>(null);
   const [options, setOptions] = useState<ViewOptions>({ hitboxes: false, logic: false });
+  const controls = useRef<RaceControls | null>(null);
   const onStats = useCallback((next: ViewStats) => setStats(next), []);
   const toggle = (key: keyof ViewOptions) => setOptions((o) => ({ ...o, [key]: !o[key] }));
 
   const menus: Menu[] = [
-    { label: "Race", entries: [{ label: "Exit", onSelect: () => closeWindow(PROGRAM_ID) }] },
+    {
+      label: "Race",
+      entries: [
+        { label: "Restart", shortcut: "F2", onSelect: () => controls.current?.restart() },
+        { label: "Pause", shortcut: "P", checked: stats?.paused ?? false, onSelect: () => controls.current?.togglePause() },
+        "divider",
+        { label: "Exit", onSelect: () => closeWindow(PROGRAM_ID) },
+      ],
+    },
     {
       label: "Options",
       entries: [
@@ -34,13 +44,32 @@ export function ThreeFourGo() {
     { label: "Help", entries: [{ label: "About 3-4-Go!…", onSelect: () => setPanel("about") }] },
   ];
 
+  const message = !stats
+    ? "Loading…"
+    : stats.finished
+      ? `${stats.track}: finished! Press F2 to race again.`
+      : stats.paused
+        ? "Paused. Press P to carry on."
+        : `${stats.track}: ↑ gas, ↓ brake, ←→ steer, Shift/Space to drift.`;
+
   return (
-    <div className="flex size-full flex-col">
+    <div
+      className="flex size-full flex-col"
+      onKeyDown={(event) => {
+        if ((event.target as HTMLElement).closest("[role=menubar]")) return;
+        if (event.key === "F2") {
+          event.preventDefault();
+          controls.current?.restart();
+        } else if (event.code === "KeyP" && !event.repeat && !event.metaKey && !event.ctrlKey && !event.altKey) {
+          controls.current?.togglePause();
+        }
+      }}
+    >
       <MenuBar menus={menus} />
 
       <div className="relative mt-0.5 flex min-h-0 flex-1 flex-col">
         <div className="min-h-0 flex-1 border-2 border-t-[#808080] border-r-white border-b-white border-l-[#808080] bg-black">
-          <RaceView options={options} onStats={onStats} />
+          <RaceView options={options} onStats={onStats} controls={controls} />
         </div>
 
         {panel === "about" && (
@@ -54,7 +83,7 @@ export function ThreeFourGo() {
             >
               <p className="m-0 font-bold">3-4-Go!</p>
               <p className="m-0">A kart racer for Windows 95, drawn the old-fashioned way: a flat map tilted into 3D.</p>
-              <p className="m-0">Under construction: for now you can drive (and drift) around Desktop Circuit.</p>
+              <p className="m-0">Under construction: for now it&apos;s a time trial on Desktop Circuit.</p>
               <p className="m-0">
                 Cars rendered from &quot;Low Poly Cars&quot; by{" "}
                 <a href="https://cosmo-art.itch.io" target="_blank" rel="noreferrer" className="text-[#0000ff] underline">
@@ -71,15 +100,15 @@ export function ThreeFourGo() {
       </div>
 
       <StatusBar>
-        <StatusBarField grow>{stats ? `${stats.track}: ` : ""}↑ gas, ↓ brake, ←→ steer, Shift/Space to drift.</StatusBarField>
-        <StatusBarField width={90}>
-          <span aria-hidden>{stats ? `${Math.round(stats.speed)} u/s` : ""}</span>
-        </StatusBarField>
+        <StatusBarField grow>{message}</StatusBarField>
         <StatusBarField width={64}>
-          <span aria-hidden>{stats?.drift ? `Drift ${stats.drift < 0 ? "◄" : "►"}` : ""}</span>
+          <span aria-hidden>{stats ? `Lap ${stats.lap}/${stats.laps}` : ""}</span>
         </StatusBarField>
         <StatusBarField width={56}>
-          <span aria-hidden>{stats ? `${Math.round(stats.fps)} fps` : ""}</span>
+          <span aria-hidden>{stats ? formatTime(stats.time) : ""}</span>
+        </StatusBarField>
+        <StatusBarField width={110}>
+          <span aria-hidden>{stats ? `Best lap ${stats.bestLap === null ? "–" : formatTime(stats.bestLap)}` : ""}</span>
         </StatusBarField>
       </StatusBar>
     </div>
