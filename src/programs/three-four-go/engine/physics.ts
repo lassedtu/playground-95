@@ -16,9 +16,9 @@ export type Surface = {
 export const ROAD: Surface = { max: 1, grip: 1, drag: 0 };
 
 /**
- * Handling per surface. Walls are solid (handled separately), out of bounds
- * drives like grass until respawning is added. Finish line and checkpoints
- * never show up here (they take the surface under them).
+ * Handling per surface. Walls are solid (see collisions.ts); out of bounds
+ * drives like grass until the respawn. Finish line and checkpoints never
+ * show up here (they take the surface under them).
  */
 export const SURFACES: Record<SurfaceCode, Surface> = {
   [SURFACE.road]: ROAD,
@@ -98,15 +98,4 @@ export function stepCar(car: Car, input: CarInput, surface: Surface, dt: number)
 
   car.v = { x: h.x * forward + r.x * sideways, y: h.y * forward + r.y * sideways };
   car.p = { x: car.p.x + car.v.x * dt, y: car.p.y + car.v.y * dt };
-}
-
-/**
- * Stand-in for wall collisions (proper ones come later): if the car's centre
- * ends up in a wall, it goes back to where it was and bounces off softly.
- */
-export function bounceOffWall(car: Car, inWall: boolean) {
-  if (!inWall) return;
-  car.p = { ...car.previous.p };
-  car.v = { x: car.v.x * -0.3, y: car.v.y * -0.3 };
-  car.drift = 0;
 }

@@ -5,23 +5,26 @@ import { type RefObject, useCallback, useEffect, useRef } from "react";
 import { useElementSize } from "@/lib/use-element-size";
 import { useElementVisible } from "@/lib/use-element-visible";
 
-import { SURFACE } from "../data/palette";
 import { TRACKS } from "../data/tracks";
 import { VEHICLES } from "../data/vehicles";
 import { makeDefaultSky, makeOutsideTile, SKY_BOTTOM } from "../engine/backdrop";
 import { type Camera, cameraBehind, followCar, lerpCamera, VIEW_HEIGHT, VIEW_WIDTH } from "../engine/camera";
 import { type Car, makeCar, NO_INPUT } from "../engine/car";
+import { collideCars, collideWithWalls, type Contact } from "../engine/collisions";
+import { drawContacts } from "../engine/draw-car";
 import { drawHud } from "../engine/hud";
 import { createKeyboard, readPlayerInput } from "../engine/input";
 import { createLoop, type Loop } from "../engine/loop";
 import { drawGround, drawSky, type Fog } from "../engine/mode7";
-import { bounceOffWall, stepCar, SURFACES } from "../engine/physics";
+import { stepCar, SURFACES } from "../engine/physics";
 import { bestLap, makeRace, type Race, started, updateRace } from "../engine/race";
 import { type CarPose, drawCars, loadSpriteSheets, type SpriteSheets } from "../engine/sprites";
 import { loadTrack, surfaceAt, type Track } from "../engine/track";
 import { dot, fromAngle, length, lerp, wrapAngle } from "../engine/vector";
 
 const FOG: Fog = { color: SKY_BOTTOM, start: 260, end: 760 };
+/** The debug view keeps showing the last collision contacts this long. */
+const CONTACTS_SHOWN = 0.5;
 
 export type ViewStats = {
   track: string;
@@ -83,6 +86,8 @@ function startRacing(
   let camera: Camera = previousCamera;
   let paused = false;
   let frames = 0;
+  let recentContacts: Contact[] = [];
+  let contactsAt = 0;
 
   const restart = () => {
     cars = gridCars();
@@ -96,7 +101,16 @@ function startRacing(
     if (paused) return;
     const player = cars[0];
     stepCar(player, started(race) ? readPlayerInput(keyboard) : NO_INPUT, SURFACES[surfaceAt(track, player.p.x, player.p.y)], dt);
-    bounceOffWall(player, surfaceAt(track, player.p.x, player.p.y) === SURFACE.wall);
+    // Bumps: cars against each other first, then walls (walls always win).
+    const contacts: Contact[] = [];
+    collideCars(cars, contacts);
+    for (const car of cars) collideWithWalls(track, car, contacts);
+    if (contacts.length) {
+      recentContacts = contacts;
+      contactsAt = race.time;
+    } else if (race.time - contactsAt > CONTACTS_SHOWN) {
+      recentContacts = [];
+    }
     // Laps and the clock follow the cars' movement. A respawn moves the car
     // without it driving there; the camera jumps with it.
     const before = { ...player.p };
@@ -118,6 +132,7 @@ function startRacing(
     drawGround(pixels, options.current.logic ? track.logicImage : track.ground, outside, view, FOG);
     ctx.putImageData(image, 0, 0);
     drawCars(ctx, view, cars.map((c) => pose(c, paused ? 1 : alpha)), sheets, options.current.hitboxes);
+    if (options.current.hitboxes) drawContacts(ctx, view, recentContacts);
     drawHud(ctx, race, race.racers[0], paused);
     frames++;
   };

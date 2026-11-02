@@ -52,3 +52,22 @@ export const CAMERA = {
   /** Below this speed the camera follows the heading instead of the movement. */
   followSpeed: 20,
 } as const;
+
+export const COLLISION = {
+  /** Passes per tick (a push can cause a new overlap). */
+  iterations: 2,
+  /** Wall pixels within this radius decide which way is out of a wall. */
+  normalRadius: 4,
+  /** Furthest a car is pushed out of a wall in one go. */
+  maxDepth: 10,
+  /** Share of the speed into a wall that bounces back, and of the speed along it that's kept. */
+  wallBounce: 0.3,
+  wallScrape: 0.85,
+  /** Bounciness between cars (0 = they stick, 1 = perfect bounce). */
+  carBounce: 0.35,
+  /** Sideways friction between touching cars, relative to the push. */
+  carFriction: 0.2,
+  /** Hits harder than this (speed × mass) turn the cars a little, up to `maxNudge` (radians). */
+  hardHit: 40,
+  maxNudge: 0.25,
+} as const;

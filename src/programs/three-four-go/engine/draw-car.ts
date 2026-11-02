@@ -21,3 +21,11 @@ export function drawCarDebug(ctx: CanvasRenderingContext2D, camera: Camera, car:
   lineOnGround(ctx, camera, p, { x: p.x + Math.cos(heading) * 20, y: p.y + Math.sin(heading) * 20 }, "#4040ff");
   lineOnGround(ctx, camera, p, { x: p.x + car.v.x * 0.15, y: p.y + car.v.y * 0.15 }, "#00ff00");
 }
+
+/** Debug overlay: recent collision contacts (red) with the direction they pushed. */
+export function drawContacts(ctx: CanvasRenderingContext2D, camera: Camera, contacts: { p: Vec2; normal: Vec2 }[]) {
+  ctx.lineWidth = 1;
+  for (const { p, normal } of contacts) {
+    lineOnGround(ctx, camera, p, { x: p.x + normal.x * 8, y: p.y + normal.y * 8 }, "#ff2020");
+  }
+}
