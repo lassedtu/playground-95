@@ -110,26 +110,41 @@ export function ThreeFourGo() {
     },
     help: {
       title: "How to Play",
-      width: "w-80",
+      width: "w-[22rem]",
       body: (
         <>
           <p className="m-0 font-bold">Race to the line!</p>
           <p className="m-0">
-            Drive through every checkpoint, lap after lap. Miss one and the lap doesn&apos;t count. Grass slows you down,
-            and walls bounce you off.
+            Pick a track, a car, the number of laps and how many CPU drivers to race (none for a time trial). After
+            &quot;3… 4… GO!&quot;, drive through every checkpoint, lap after lap. Miss one and the lap doesn&apos;t count.
           </p>
+
+          <p className="m-0 font-bold">Controls</p>
           <ul className="m-0 flex list-disc flex-col gap-0.5 pl-5">
             <li>↑ or W: gas. ↓ or S: brake, then reverse.</li>
             <li>← → or A D: steer.</li>
-            <li>Hold Shift or Space while steering to drift: you go a little faster.</li>
-            <li>P pauses, F2 restarts.</li>
+            <li>Hold Shift or Space while steering to drift. Drifting is a little faster than turning normally.</li>
+            <li>P pauses, F2 restarts the race.</li>
             <li>On a touch screen, use the buttons on the screen.</li>
           </ul>
-          <p className="m-0">You start at the back. The CPU drivers each drive their own way: some are fast, some are clumsy.</p>
-          <p className="m-0">
-            Every car has the same number of stat points, spread differently over speed, acceleration and handling. The
-            differences are small: pick the one you like.
-          </p>
+
+          <p className="m-0 font-bold">On the track</p>
+          <ul className="m-0 flex list-disc flex-col gap-0.5 pl-5">
+            <li>Grass, snow and sand slow you down. Walls bounce you off and cost you speed.</li>
+            <li>On Beach Day, drive into the sea and you&apos;re put back on the road after a second.</li>
+            <li>Bump into other cars and they bump back: heavier cars push harder.</li>
+            <li>&quot;WRONG WAY&quot; means you&apos;re driving backwards round the track.</li>
+          </ul>
+
+          <p className="m-0 font-bold">Cars and drivers</p>
+          <ul className="m-0 flex list-disc flex-col gap-0.5 pl-5">
+            <li>
+              Every car has the same number of stat points, spread differently over speed, acceleration and handling.
+              The differences are small: pick the one you like.
+            </li>
+            <li>You start at the back. The CPU drivers each drive their own way: some are fast, some are clumsy.</li>
+            <li>Your best lap and best race time on each track are saved.</li>
+          </ul>
           <PanelButtons>
             <Button onClick={() => setPanel(settings ? "none" : "new-race")}>OK</Button>
           </PanelButtons>
