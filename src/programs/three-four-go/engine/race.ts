@@ -112,7 +112,7 @@ function cross(race: Race, racer: Racer, gate: number) {
 }
 
 /** Puts a car back on the road at the last gate it crossed (or its grid slot), standing still. */
-function respawn(race: Race, racer: Racer, index: number) {
+export function respawn(race: Race, racer: Racer, index: number) {
   const { car } = racer;
   if (racer.last >= 0) {
     const gate = race.track.gates[racer.last];

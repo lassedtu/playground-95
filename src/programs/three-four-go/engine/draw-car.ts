@@ -29,3 +29,16 @@ export function drawContacts(ctx: CanvasRenderingContext2D, camera: Camera, cont
     lineOnGround(ctx, camera, p, { x: p.x + normal.x * 8, y: p.y + normal.y * 8 }, "#ff2020");
   }
 }
+
+/** Debug overlay: what a CPU sees, its whiskers (green clear, red touching the edge) and its target (cross). */
+export function drawCpuDebug(
+  ctx: CanvasRenderingContext2D,
+  camera: Camera,
+  seen: { target: Vec2; whiskers: { from: Vec2; to: Vec2; blocked: boolean }[] },
+) {
+  ctx.lineWidth = 1;
+  for (const w of seen.whiskers) lineOnGround(ctx, camera, w.from, w.to, w.blocked ? "#ff4040" : "#40ff40");
+  const { x, y } = seen.target;
+  lineOnGround(ctx, camera, { x: x - 4, y: y - 4 }, { x: x + 4, y: y + 4 }, "#ff00ff");
+  lineOnGround(ctx, camera, { x: x - 4, y: y + 4 }, { x: x + 4, y: y - 4 }, "#ff00ff");
+}

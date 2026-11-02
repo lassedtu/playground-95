@@ -20,7 +20,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
-const pack = process.argv[2] ?? join(root, "lowpoly_cars_free");
+const pack = process.argv[2] ?? join(root, "ignored-assets", "lowpoly_cars_free");
 const program = join(root, "src/programs/three-four-go");
 const assets = join(program, "assets/vehicles");
 const blender = process.env.BLENDER ?? "/Applications/Blender.app/Contents/MacOS/Blender";

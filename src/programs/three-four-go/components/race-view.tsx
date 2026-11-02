@@ -11,7 +11,8 @@ import { makeDefaultSky, makeOutsideTile, SKY_BOTTOM } from "../engine/backdrop"
 import { type Camera, cameraBehind, followCar, lerpCamera, VIEW_HEIGHT, VIEW_WIDTH } from "../engine/camera";
 import { type Car, makeCar, NO_INPUT } from "../engine/car";
 import { collideCars, collideWithWalls, type Contact } from "../engine/collisions";
-import { drawContacts } from "../engine/draw-car";
+import { type CpuDriver, DEFAULT_STYLE, drive, makeDriver } from "../engine/cpu";
+import { drawContacts, drawCpuDebug } from "../engine/draw-car";
 import { drawHud } from "../engine/hud";
 import { createKeyboard, readPlayerInput } from "../engine/input";
 import { createLoop, type Loop } from "../engine/loop";
@@ -25,6 +26,10 @@ import { dot, fromAngle, length, lerp, wrapAngle } from "../engine/vector";
 const FOG: Fog = { color: SKY_BOTTOM, start: 260, end: 760 };
 /** The debug view keeps showing the last collision contacts this long. */
 const CONTACTS_SHOWN = 0.5;
+/** CPU drivers on the grid. */
+const CPU_COUNT = 7;
+/** Moving further than this in one tick is a respawn, not driving. */
+const TELEPORT = 20;
 
 export type ViewStats = {
   track: string;
@@ -75,13 +80,14 @@ function startRacing(
   const pixels = new Uint32Array(image.data.buffer);
   const keyboard = createKeyboard(canvas);
 
-  // Just the player on pole for now (CPU drivers fill the rest of the grid later).
-  const gridCars = () => {
-    const pole = track.start[0];
-    return [makeCar(VEHICLES[0], pole.x, pole.y, pole.angle)];
-  };
+  // Seven CPUs on the grid, you at the back (like the old kart games).
+  const PLAYER = Math.min(CPU_COUNT, track.start.length - 1);
+  const gridCars = () =>
+    track.start.slice(0, PLAYER + 1).map((slot, i) => makeCar(VEHICLES[i === PLAYER ? 0 : i + 1], slot.x, slot.y, slot.angle));
   let cars: Car[] = [];
+  let drivers: CpuDriver[] = [];
   let race: Race = makeRace(track, []);
+  let raceNumber = 0;
   let previousCamera: Camera = cameraBehind(makeCar(VEHICLES[0], 0, 0, 0));
   let camera: Camera = previousCamera;
   let paused = false;
@@ -91,16 +97,29 @@ function startRacing(
 
   const restart = () => {
     cars = gridCars();
-    race = makeRace(track, [cars[0]]);
-    previousCamera = camera = cameraBehind(cars[0]);
+    // Every car gets a driver; yours takes over once you've finished.
+    raceNumber++;
+    drivers = cars.map((_, i) => makeDriver(DEFAULT_STYLE, raceNumber * 100 + i));
+    race = makeRace(track, cars);
+    previousCamera = camera = cameraBehind(cars[PLAYER]);
     paused = false;
   };
   restart();
 
   const update = (dt: number) => {
     if (paused) return;
-    const player = cars[0];
-    stepCar(player, started(race) ? readPlayerInput(keyboard) : NO_INPUT, SURFACES[surfaceAt(track, player.p.x, player.p.y)], dt);
+    const player = cars[PLAYER];
+    const you = race.racers[PLAYER];
+    const before = { ...player.p };
+    cars.forEach((car, i) => {
+      const input =
+        i === PLAYER && you.finished === null
+          ? started(race)
+            ? readPlayerInput(keyboard)
+            : NO_INPUT
+          : drive(race, race.racers[i], i, drivers[i], dt);
+      stepCar(car, input, SURFACES[surfaceAt(track, car.p.x, car.p.y)], dt);
+    });
     // Bumps: cars against each other first, then walls (walls always win).
     const contacts: Contact[] = [];
     collideCars(cars, contacts);
@@ -113,9 +132,8 @@ function startRacing(
     }
     // Laps and the clock follow the cars' movement. A respawn moves the car
     // without it driving there; the camera jumps with it.
-    const before = { ...player.p };
     updateRace(race, dt);
-    if (player.p.x !== before.x || player.p.y !== before.y) camera = cameraBehind(player);
+    if (Math.hypot(player.p.x - before.x, player.p.y - before.y) > TELEPORT) camera = cameraBehind(player);
     previousCamera = camera;
     camera = followCar(camera, player, dt);
   };
@@ -132,8 +150,13 @@ function startRacing(
     drawGround(pixels, options.current.logic ? track.logicImage : track.ground, outside, view, FOG);
     ctx.putImageData(image, 0, 0);
     drawCars(ctx, view, cars.map((c) => pose(c, paused ? 1 : alpha)), sheets, options.current.hitboxes);
-    if (options.current.hitboxes) drawContacts(ctx, view, recentContacts);
-    drawHud(ctx, race, race.racers[0], paused);
+    if (options.current.hitboxes) {
+      drawContacts(ctx, view, recentContacts);
+      drivers.forEach((d, i) => {
+        if (d.seen && (i !== PLAYER || race.racers[PLAYER].finished !== null)) drawCpuDebug(ctx, view, d.seen);
+      });
+    }
+    drawHud(ctx, race, race.racers[PLAYER], paused);
     frames++;
   };
 
@@ -152,8 +175,8 @@ function startRacing(
   let lastReport = performance.now();
   const report = setInterval(() => {
     const now = performance.now();
-    const racer = race.racers[0];
-    const player = cars[0];
+    const racer = race.racers[PLAYER];
+    const player = cars[PLAYER];
     onStats.current({
       track: track.name,
       lap: Math.min(Math.max(1, racer.lap), race.laps),
@@ -222,7 +245,7 @@ export function RaceView({ options, onStats, controls }: RaceViewProps) {
     let cancelled = false;
     drawMessage(ctx, "Loading track…");
     canvas.focus();
-    Promise.all([loadTrack(TRACKS[0]), loadSpriteSheets(VEHICLES.slice(0, 1))]).then(
+    Promise.all([loadTrack(TRACKS[0]), loadSpriteSheets(VEHICLES.slice(0, CPU_COUNT + 1))]).then(
       ([track, sheets]) => {
         if (cancelled) return;
         stop = startRacing(canvas, ctx, track, sheets, optionsRef, onStatsRef, controls, loopRef, visibleNow);

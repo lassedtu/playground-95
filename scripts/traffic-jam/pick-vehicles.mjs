@@ -16,7 +16,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
-const pack = process.argv[2] ?? join(root, "TopDown Vehicles v1.17");
+const pack = process.argv[2] ?? join(root, "ignored-assets", "TopDown Vehicles v1.17");
 const program = join(root, "src/programs/traffic-jam");
 const assets = join(program, "assets/vehicles");
 
