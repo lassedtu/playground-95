@@ -1,17 +1,20 @@
 /**
- * Desktop Circuit, 3-4-Go!'s first track: a plain road on grass with a long
- * top straight, sweeping corners and an S-bend on each side. Drawn into a
- * logic layer by draw-track.mjs.
+ * Hill Climb: fields below a castle, a cobbled road with a long top
+ * straight, sweeping corners and an S-bend on each side. (The old Desktop
+ * Circuit layout.) Drawn into a logic layer by draw-track.mjs.
  *
  * The road follows a smooth closed curve through `points` (map pixels,
  * driving order: clockwise on screen, starting on the top straight).
  */
-const desktopCircuit = {
-  name: "Desktop Circuit",
+const hillClimb = {
+  name: "Hill Climb",
+  /** Ground theme (data/ground-style.ts); the sky is picked by track id (data/skies.ts). */
+  theme: "castle",
   laps: 3,
   size: 1024,
   roadWidth: 80,
-  /** Solid wall around the map's edge, so nobody drives off into nothing. */
+  /** What's around the map's edge ("wall" or "water"), and how wide. */
+  edge: "wall",
   border: 12,
   points: [
     [300, 160],
@@ -34,4 +37,4 @@ const desktopCircuit = {
   checkpoints: 12,
 };
 
-export default desktopCircuit;
+export default hillClimb;

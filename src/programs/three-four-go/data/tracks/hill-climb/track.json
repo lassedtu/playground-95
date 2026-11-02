@@ -1,5 +1,6 @@
 {
-  "name": "Desktop Circuit",
+  "name": "Hill Climb",
+  "theme": "castle",
   "laps": 3,
   "lapLength": 3018,
   "start": [
