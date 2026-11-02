@@ -5,21 +5,23 @@ import { useCallback, useEffect, useRef } from "react";
 import { useElementSize } from "@/lib/use-element-size";
 import { useElementVisible } from "@/lib/use-element-visible";
 
-import { type Camera, lerpCamera, makeCamera, VIEW_HEIGHT, VIEW_WIDTH } from "../engine/camera";
-import { createKeyboard } from "../engine/input";
+import { type Camera, cameraBehind, followCar, lerpCamera, VIEW_HEIGHT, VIEW_WIDTH } from "../engine/camera";
+import { makeCar } from "../engine/car";
+import { drawCarDebug, drawCarPlaceholder } from "../engine/draw-car";
+import { createKeyboard, readPlayerInput } from "../engine/input";
 import { createLoop } from "../engine/loop";
 import { drawGround, drawSky, type Fog } from "../engine/mode7";
+import { keepInside, ROAD, stepCar } from "../engine/physics";
 import { makeTestGround, makeTestOutside, makeTestSky, SKY_BOTTOM, TEST_START } from "../engine/test-track";
+import { dot, fromAngle, length, lerp, wrapAngle } from "../engine/vector";
 
-/** Debug fly camera (until there's a car to follow). */
-const FLY_SPEED = 160;
-const FLY_FAST = 3;
-const TURN_SPEED = 1.8;
 const FOG: Fog = { color: SKY_BOTTOM, start: 260, end: 760 };
 
-export type ViewStats = { x: number; y: number; angle: number; fps: number };
+export type ViewStats = { speed: number; drift: -1 | 0 | 1; fps: number };
 
 type RaceViewProps = {
+  /** Draw hitboxes and the heading / velocity vectors. */
+  debug: boolean;
   /** Called a few times a second with what the status bar shows. */
   onStats: (stats: ViewStats) => void;
 };
@@ -29,9 +31,10 @@ type RaceViewProps = {
  * keeping its aspect ratio; whole-number scales when there's room for 2× or
  * more. The game loop only runs while the view is on screen.
  */
-export function RaceView({ onStats }: RaceViewProps) {
+export function RaceView({ debug, onStats }: RaceViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const onStatsRef = useRef(onStats);
+  const debugRef = useRef(debug);
   const loopRef = useRef<ReturnType<typeof createLoop> | null>(null);
   const [areaRef, area] = useElementSize<HTMLDivElement>();
   const [visibleRef, visible] = useElementVisible<HTMLCanvasElement>();
@@ -45,7 +48,8 @@ export function RaceView({ onStats }: RaceViewProps) {
 
   useEffect(() => {
     onStatsRef.current = onStats;
-  }, [onStats]);
+    debugRef.current = debug;
+  }, [onStats, debug]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -59,31 +63,31 @@ export function RaceView({ onStats }: RaceViewProps) {
     const pixels = new Uint32Array(image.data.buffer);
     const keyboard = createKeyboard(canvas);
 
-    let previous: Camera = makeCamera(TEST_START.x, TEST_START.y, TEST_START.angle);
-    let current: Camera = previous;
+    const car = makeCar(TEST_START.x, TEST_START.y, TEST_START.angle);
+    let previousCamera: Camera = cameraBehind(car);
+    let camera: Camera = previousCamera;
     let frames = 0;
 
-    const held = (...codes: string[]) => codes.some((code) => keyboard.isDown(code));
-
     const update = (dt: number) => {
-      previous = current;
-      const turn = (held("ArrowRight", "KeyD") ? 1 : 0) - (held("ArrowLeft", "KeyA") ? 1 : 0);
-      const move = (held("ArrowUp", "KeyW") ? 1 : 0) - (held("ArrowDown", "KeyS") ? 1 : 0);
-      const speed = FLY_SPEED * (held("ShiftLeft", "ShiftRight") ? FLY_FAST : 1);
-      const angle = current.angle + turn * TURN_SPEED * dt;
-      current = {
-        ...current,
-        angle,
-        x: current.x + Math.cos(angle) * move * speed * dt,
-        y: current.y + Math.sin(angle) * move * speed * dt,
-      };
+      stepCar(car, readPlayerInput(keyboard), ROAD, dt);
+      keepInside(car, ground.width, ground.height);
+      previousCamera = camera;
+      camera = followCar(camera, car, dt);
     };
 
     const render = (alpha: number) => {
-      const camera = lerpCamera(previous, current, alpha);
-      drawSky(pixels, sky, camera);
-      drawGround(pixels, ground, outside, camera, FOG);
+      const view = lerpCamera(previousCamera, camera, alpha);
+      drawSky(pixels, sky, view);
+      drawGround(pixels, ground, outside, view, FOG);
       ctx.putImageData(image, 0, 0);
+
+      const p = {
+        x: lerp(car.previous.p.x, car.p.x, alpha),
+        y: lerp(car.previous.p.y, car.p.y, alpha),
+      };
+      const heading = car.previous.heading + wrapAngle(car.heading - car.previous.heading) * alpha;
+      drawCarPlaceholder(ctx, view, car, p, heading);
+      if (debugRef.current) drawCarDebug(ctx, view, car, p, heading);
       frames++;
     };
 
@@ -95,11 +99,9 @@ export function RaceView({ onStats }: RaceViewProps) {
     let lastReport = performance.now();
     const report = setInterval(() => {
       const now = performance.now();
-      const degrees = ((((current.angle * 180) / Math.PI) % 360) + 360) % 360;
       onStatsRef.current({
-        x: current.x,
-        y: current.y,
-        angle: degrees,
+        speed: length(car.v) * Math.sign(dot(car.v, fromAngle(car.heading)) || 1),
+        drift: car.drift,
         fps: loop.running ? (frames * 1000) / (now - lastReport) : 0,
       });
       frames = 0;
@@ -130,7 +132,7 @@ export function RaceView({ onStats }: RaceViewProps) {
         width={VIEW_WIDTH}
         height={VIEW_HEIGHT}
         tabIndex={0}
-        aria-label="3-4-Go! race view. Arrow keys or W A S D to fly the camera, hold Shift to go faster."
+        aria-label="3-4-Go! race view. Up arrow or W for gas, down arrow or S to brake and reverse, left and right to steer, hold Shift or Space while steering to drift."
         onPointerDown={(event) => event.currentTarget.focus()}
         className="block bg-black outline-none [image-rendering:pixelated]"
         style={{ width: VIEW_WIDTH * scale || undefined, height: VIEW_HEIGHT * scale || undefined }}

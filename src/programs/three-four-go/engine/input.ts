@@ -1,3 +1,5 @@
+import type { CarInput } from "./car";
+
 /** Keys the game uses, others are left alone (so browser shortcuts still work). */
 const GAME_KEYS = new Set([
   "ArrowUp",
@@ -15,6 +17,17 @@ const GAME_KEYS = new Set([
 ]);
 
 export type Keyboard = { isDown(code: string): boolean; dispose(): void };
+
+/** The player's controls: arrows or WASD, Shift or Space to drift. */
+export function readPlayerInput(keyboard: Keyboard): CarInput {
+  const held = (...codes: string[]) => codes.some((code) => keyboard.isDown(code));
+  return {
+    throttle: held("ArrowUp", "KeyW") ? 1 : 0,
+    brake: held("ArrowDown", "KeyS") ? 1 : 0,
+    steer: (held("ArrowRight", "KeyD") ? 1 : 0) - (held("ArrowLeft", "KeyA") ? 1 : 0),
+    drift: held("ShiftLeft", "ShiftRight", "Space"),
+  };
+}
 
 /**
  * Which keys are held, by physical key (`event.code`, so WASD works on any
