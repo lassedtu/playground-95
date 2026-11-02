@@ -7,7 +7,7 @@ import { useDesktop } from "@/components/desktop/desktop-context";
 import { type Menu, MenuBar } from "@/components/ui/menu-bar";
 import { StatusBar, StatusBarField } from "@/components/ui/status-bar";
 
-/** Must match the id in programs/registry.tsx (used by Test → Exit). */
+/** Must match the id in programs/registry.tsx (used by Test -> Exit). */
 const PROGRAM_ID = "reaction-test";
 const BEST_KEY = "playground95.reaction-test.best";
 const ROUNDS = 5;

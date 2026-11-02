@@ -21,7 +21,7 @@ import {
   verdict,
 } from "./lib/quiz";
 
-/** Must match the id in programs/registry.tsx (used by Game → Exit). */
+/** Must match the id in programs/registry.tsx (used by Game -> Exit). */
 const PROGRAM_ID = "flag-quiz";
 const SETTINGS_KEY = "playground95.flag-quiz.settings";
 const DEFAULT_CONFIG: Config = { region: "all", difficulty: "easy", count: 10 };
@@ -307,7 +307,7 @@ export function FlagQuiz() {
                     {current.correct ? "✓ Correct!" : `✗ It's ${question.answer.name}.`}
                   </span>
                   <Button ref={nextRef} onClick={next}>
-                    {index + 1 < questions.length ? "Next flag →" : "See results"}
+                    {index + 1 < questions.length ? "Next flag ->" : "See results"}
                   </Button>
                 </>
               )}

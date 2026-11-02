@@ -10,7 +10,7 @@ import { StatusBar, StatusBarField } from "@/components/ui/status-bar";
 import { Gallows, MAX_MISSES } from "./components/gallows";
 import { CATEGORIES, type Category, CATEGORY_NAMES } from "./data/words";
 
-/** Must match the id in programs/registry.tsx (used by Game → Exit). */
+/** Must match the id in programs/registry.tsx (used by Game -> Exit). */
 const PROGRAM_ID = "hangman";
 const STATS_KEY = "playground95.hangman.stats";
 const ALPHABET = "abcdefghijklmnopqrstuvwxyz";
@@ -155,9 +155,8 @@ export function Hangman() {
               <span
                 key={i}
                 aria-hidden
-                className={`flex h-8 w-5 items-end justify-center border-b-2 border-black pb-1 text-xl leading-none font-bold uppercase ${
-                  lost && !round.guessed.includes(char) ? "text-[#c00000]" : ""
-                }`}
+                className={`flex h-8 w-5 items-end justify-center border-b-2 border-black pb-1 text-xl leading-none font-bold uppercase ${lost && !round.guessed.includes(char) ? "text-[#c00000]" : ""
+                  }`}
               >
                 {round.guessed.includes(char) || lost ? char : ""}
               </span>

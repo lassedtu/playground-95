@@ -11,10 +11,15 @@ import { Wordpad } from "@react95/icons/Wordpad";
 import { Sol1 } from "@react95/icons/Sol1";
 import { Winmine1 } from "@react95/icons/Winmine1";
 
+import { PixelIcon } from "@/components/ui/pixel-icon";
+
 import { HangmanIcon } from "./hangman/components/gallows";
 import { BingoIcon } from "./lecture-bingo/components/bingo-icon";
 import { EightBallIcon } from "./magic-8-ball/components/eight-ball-icon";
-import { TrafficJamIcon } from "./traffic-jam/components/traffic-jam-icon";
+import threeFourGo16 from "./three-four-go/assets/icon/icon-16.png";
+import threeFourGo32 from "./three-four-go/assets/icon/icon-32.png";
+import trafficJam16 from "./traffic-jam/assets/icon/icon-16.png";
+import trafficJam32 from "./traffic-jam/assets/icon/icon-32.png";
 import type { ProgramDefinition } from "./types";
 
 /**
@@ -124,7 +129,7 @@ export const programs: ProgramDefinition[] = [
     component: dynamic(() => import("./game-2048/game-2048").then((m) => m.Game2048)),
   },
   {
-    // Must match PROGRAM_ID in reaction-test.tsx (used by Test → Exit).
+    // Must match PROGRAM_ID in reaction-test.tsx (used by Test -> Exit).
     id: "reaction-test",
     category: "games",
     title: "Reaction Test",
@@ -136,7 +141,7 @@ export const programs: ProgramDefinition[] = [
     component: dynamic(() => import("./reaction-test/reaction-test").then((m) => m.ReactionTest)),
   },
   {
-    // Must match PROGRAM_ID in lecture-bingo.tsx (used by Game → Exit).
+    // Must match PROGRAM_ID in lecture-bingo.tsx (used by Game -> Exit).
     id: "lecture-bingo",
     category: "games",
     title: "Lecture Bingo",
@@ -148,7 +153,7 @@ export const programs: ProgramDefinition[] = [
     component: dynamic(() => import("./lecture-bingo/lecture-bingo").then((m) => m.LectureBingo)),
   },
   {
-    // Must match PROGRAM_ID in hangman.tsx (used by Game → Exit).
+    // Must match PROGRAM_ID in hangman.tsx (used by Game -> Exit).
     id: "hangman",
     category: "games",
     title: "Hangman",
@@ -160,7 +165,7 @@ export const programs: ProgramDefinition[] = [
     component: dynamic(() => import("./hangman/hangman").then((m) => m.Hangman)),
   },
   {
-    // Must match PROGRAM_ID in flag-quiz.tsx (used by Game → Exit).
+    // Must match PROGRAM_ID in flag-quiz.tsx (used by Game -> Exit).
     id: "flag-quiz",
     category: "games",
     title: "Flag Quiz",
@@ -172,19 +177,32 @@ export const programs: ProgramDefinition[] = [
     component: dynamic(() => import("./flag-quiz/flag-quiz").then((m) => m.FlagQuiz)),
   },
   {
-    // Must match PROGRAM_ID in traffic-jam.tsx (used by Game → Exit).
+    // Must match PROGRAM_ID in traffic-jam.tsx (used by Game -> Exit).
     id: "traffic-jam",
     category: "games",
     title: "Traffic Jam",
     icon: {
-      large: <TrafficJamIcon size={32} />,
-      small: <TrafficJamIcon size={16} />,
+      large: <PixelIcon src={trafficJam32} size={32} />,
+      small: <PixelIcon src={trafficJam16} size={16} />,
     },
     window: { width: 400, height: 430 },
     component: dynamic(() => import("./traffic-jam/traffic-jam").then((m) => m.TrafficJam)),
   },
   {
-    // Must match PROGRAM_ID in notes.tsx (used by File → Exit).
+    // Must match PROGRAM_ID in three-four-go.tsx (used by Race -> Exit).
+    id: "three-four-go",
+    category: "games",
+    title: "3-4-Go!",
+    icon: {
+      large: <PixelIcon src={threeFourGo32} size={32} />,
+      small: <PixelIcon src={threeFourGo16} size={16} />,
+    },
+    // Room for the 320×230 view at 2×.
+    window: { width: 660, height: 530 },
+    component: dynamic(() => import("./three-four-go/three-four-go").then((m) => m.ThreeFourGo)),
+  },
+  {
+    // Must match PROGRAM_ID in notes.tsx (used by File -> Exit).
     id: "notes",
     category: "programs",
     title: "Notes",
