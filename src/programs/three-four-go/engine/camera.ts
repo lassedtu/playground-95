@@ -4,7 +4,13 @@ import { dot, fromAngle, length, wrapAngle } from "./vector";
 
 /** Size of the rendered picture; it's scaled up (pixelated) to fit the window. */
 export const VIEW_WIDTH = 320;
-export const VIEW_HEIGHT = 200;
+export const VIEW_HEIGHT = 230;
+/**
+ * Screen row the camera looks through. Not the middle: the picture is 200
+ * rows around it plus 30 extra rows on top, so there's more sky for the
+ * scenery while the road looks the same.
+ */
+export const CENTER_Y = 130;
 /** Horizontal field of view. */
 const FOV = (60 * Math.PI) / 180;
 const FOCAL = VIEW_WIDTH / 2 / Math.tan(FOV / 2);
@@ -31,7 +37,7 @@ export function makeCamera(x: number, y: number, angle: number): Camera {
 }
 
 /** Screen row of the horizon (can be above the top of the screen when tilted far down). */
-export const horizonRow = (camera: Camera) => VIEW_HEIGHT / 2 - camera.focal * Math.tan(camera.pitch);
+export const horizonRow = (camera: Camera) => CENTER_Y - camera.focal * Math.tan(camera.pitch);
 
 /** Camera right behind a car, looking where it points. */
 export function cameraBehind(car: Car): Camera {
@@ -92,5 +98,5 @@ export function project(camera: Camera, x: number, y: number) {
   if (depth < NEAR) return null;
   const up = ahead * sp - camera.height * cp;
   const scale = camera.focal / depth;
-  return { x: VIEW_WIDTH / 2 + lateral * scale, y: VIEW_HEIGHT / 2 - up * scale, scale, ahead };
+  return { x: VIEW_WIDTH / 2 + lateral * scale, y: CENTER_Y - up * scale, scale, ahead };
 }

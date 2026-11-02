@@ -5,10 +5,12 @@ import { type RefObject, useCallback, useEffect, useRef, useState } from "react"
 import { useElementSize } from "@/lib/use-element-size";
 import { useElementVisible } from "@/lib/use-element-visible";
 
+import { THEMES } from "../data/ground-style";
 import { CPU_DRIVERS } from "../data/personalities";
+import { SKIES } from "../data/skies";
 import { TRACKS } from "../data/tracks";
 import { type Vehicle, VEHICLES } from "../data/vehicles";
-import { makeDefaultSky, makeOutsideTile, SKY_BOTTOM } from "../engine/backdrop";
+import { type LoadedSky, loadSky, makeOutsideTile } from "../engine/backdrop";
 import { type Camera, cameraBehind, followCar, lerpCamera, VIEW_HEIGHT, VIEW_WIDTH } from "../engine/camera";
 import { type Car, makeCar, NO_INPUT } from "../engine/car";
 import { collideCars, collideWithWalls, type Contact } from "../engine/collisions";
@@ -28,7 +30,9 @@ import type { RaceSettings } from "../lib/settings";
 import type { ResultRow } from "./results-dialog";
 import { TouchControls } from "./touch-controls";
 
-const FOG: Fog = { color: SKY_BOTTOM, start: 260, end: 760 };
+/** Distant ground fades into the sky's horizon colour between these distances. */
+const FOG_START = 260;
+const FOG_END = 760;
 /** The debug view keeps showing the last collision contacts this long. */
 const CONTACTS_SHOWN = 0.5;
 /** Moving further than this in one tick is a respawn, not driving. */
@@ -85,15 +89,17 @@ type Refs = {
   visible: { current: boolean };
 };
 
-const tracks = new Map<string, Promise<Track>>();
+const tracks = new Map<string, Promise<{ track: Track; sky: LoadedSky }>>();
+/** A track and its sky, loaded once and kept for the next race. */
 function trackFor(id: string) {
-  let track = tracks.get(id);
-  if (!track) {
-    track = loadTrack(TRACKS.find((t) => t.id === id) ?? TRACKS[0]);
-    track.catch(() => tracks.delete(id));
-    tracks.set(id, track);
+  let loaded = tracks.get(id);
+  if (!loaded) {
+    const definition = TRACKS.find((t) => t.id === id) ?? TRACKS[0];
+    loaded = Promise.all([loadTrack(definition), loadSky(SKIES[definition.id])]).then(([track, sky]) => ({ track, sky }));
+    loaded.catch(() => tracks.delete(id));
+    tracks.set(id, loaded);
   }
-  return track;
+  return loaded;
 }
 
 /** Your car, and one different car per CPU (theirs are fixed, yours can be any). */
@@ -109,12 +115,13 @@ function startRacing(
   ctx: CanvasRenderingContext2D,
   settings: RaceSettings,
   track: Track,
+  sky: LoadedSky,
   sheets: SpriteSheets,
   keyboard: Keyboard,
   refs: Refs,
 ) {
-  const outside = makeOutsideTile();
-  const sky = makeDefaultSky();
+  const outside = makeOutsideTile(THEMES[track.theme] ?? THEMES.castle);
+  const fog: Fog = { color: sky.fog, start: FOG_START, end: FOG_END };
   const image = ctx.createImageData(VIEW_WIDTH, VIEW_HEIGHT);
   const pixels = new Uint32Array(image.data.buffer);
   const { yours, theirs } = carsFor(settings);
@@ -223,8 +230,8 @@ function startRacing(
     const t = still ? 1 : alpha;
     const options = refs.options.current;
     const view = lerpCamera(previousCamera, camera, t);
-    drawSky(pixels, sky, view);
-    drawGround(pixels, options.logic ? track.logicImage : track.ground, outside, view, FOG);
+    drawSky(pixels, sky.layers, view, sky.fog);
+    drawGround(pixels, options.logic ? track.logicImage : track.ground, outside, view, fog);
     ctx.putImageData(image, 0, 0);
     drawCars(ctx, view, cars.map((c) => pose(c, t)), sheets, options.hitboxes);
     if (options.hitboxes) {
@@ -343,8 +350,8 @@ export function RaceView({ settings, options, hold, onStats, onFinish, controls 
     drawMessage(ctx, "3-4-Go!", "Loading track…");
     const { yours, theirs } = carsFor(settings);
     Promise.all([trackFor(settings.track), loadSpriteSheets([yours, ...theirs])]).then(
-      ([track, sheets]) => {
-        if (!cancelled) stop = startRacing(canvas, ctx, settings, track, sheets, keyboard, refs);
+      ([{ track, sky }, sheets]) => {
+        if (!cancelled) stop = startRacing(canvas, ctx, settings, track, sky, sheets, keyboard, refs);
       },
       () => !cancelled && drawMessage(ctx, "3-4-Go!", "Couldn't load the track."),
     );

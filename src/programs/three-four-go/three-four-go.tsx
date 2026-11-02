@@ -146,6 +146,7 @@ export function ThreeFourGo() {
             </a>{" "}
             (CC0).
           </p>
+          <p className="m-0">Skies from Nasha&apos;s Parallax Worlds.</p>
           <PanelButtons>
             <Button onClick={() => setPanel(settings ? "none" : "new-race")}>OK</Button>
           </PanelButtons>

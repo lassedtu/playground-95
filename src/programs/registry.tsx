@@ -11,11 +11,15 @@ import { Wordpad } from "@react95/icons/Wordpad";
 import { Sol1 } from "@react95/icons/Sol1";
 import { Winmine1 } from "@react95/icons/Winmine1";
 
+import { PixelIcon } from "@/components/ui/pixel-icon";
+
 import { HangmanIcon } from "./hangman/components/gallows";
 import { BingoIcon } from "./lecture-bingo/components/bingo-icon";
 import { EightBallIcon } from "./magic-8-ball/components/eight-ball-icon";
-import { ThreeFourGoIcon } from "./three-four-go/components/three-four-go-icon";
-import { TrafficJamIcon } from "./traffic-jam/components/traffic-jam-icon";
+import threeFourGo16 from "./three-four-go/assets/icon/icon-16.png";
+import threeFourGo32 from "./three-four-go/assets/icon/icon-32.png";
+import trafficJam16 from "./traffic-jam/assets/icon/icon-16.png";
+import trafficJam32 from "./traffic-jam/assets/icon/icon-32.png";
 import type { ProgramDefinition } from "./types";
 
 /**
@@ -178,8 +182,8 @@ export const programs: ProgramDefinition[] = [
     category: "games",
     title: "Traffic Jam",
     icon: {
-      large: <TrafficJamIcon size={32} />,
-      small: <TrafficJamIcon size={16} />,
+      large: <PixelIcon src={trafficJam32} size={32} />,
+      small: <PixelIcon src={trafficJam16} size={16} />,
     },
     window: { width: 400, height: 430 },
     component: dynamic(() => import("./traffic-jam/traffic-jam").then((m) => m.TrafficJam)),
@@ -190,11 +194,11 @@ export const programs: ProgramDefinition[] = [
     category: "games",
     title: "3-4-Go!",
     icon: {
-      large: <ThreeFourGoIcon size={32} />,
-      small: <ThreeFourGoIcon size={16} />,
+      large: <PixelIcon src={threeFourGo32} size={32} />,
+      small: <PixelIcon src={threeFourGo16} size={16} />,
     },
-    // Room for the 320×200 view at 2×.
-    window: { width: 660, height: 470 },
+    // Room for the 320×230 view at 2×.
+    window: { width: 660, height: 530 },
     component: dynamic(() => import("./three-four-go/three-four-go").then((m) => m.ThreeFourGo)),
   },
   {

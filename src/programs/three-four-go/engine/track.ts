@@ -97,6 +97,7 @@ export async function loadTrack(definition: TrackDefinition): Promise<Track> {
     laps: definition.laps,
     lapLength: definition.lapLength,
     start: definition.start,
+    theme: definition.theme,
     width: logic.width,
     height: logic.height,
     ground: textureFromImageData(ground),

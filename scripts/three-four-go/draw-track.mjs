@@ -3,7 +3,7 @@
  * Draws a 3-4-Go! track's logic layer from a design in ./designs/, and writes
  * its track.json (name, laps, start grid). Needs ImageMagick (`magick`).
  *
- *   node scripts/three-four-go/draw-track.mjs desktop-circuit
+ *   node scripts/three-four-go/draw-track.mjs hill-climb
  *
  * The road is a smooth closed curve (Catmull-Rom through the design's
  * points). Checkpoint stripes go straight across it, evenly spaced along the
@@ -38,6 +38,8 @@ const GRID = { behind: 22, row: 22, stagger: 11, side: 14 };
 
 const { size, roadWidth, border, points } = design;
 const half = roadWidth / 2;
+/** What's around the map's edge: a wall, or water you can drive into (and get put back on the road). */
+const edgeSurface = design.edge === "water" ? SURFACE.out : SURFACE.wall;
 
 // 1. Sample the closed curve.
 const curve = [];
@@ -123,7 +125,7 @@ for (let y = 0; y < size; y++) {
   for (let x = 0; x < size; x++) {
     let rgb = colorOf[SURFACE.grass];
     if (x < border || y < border || x >= size - border || y >= size - border) {
-      rgb = colorOf[SURFACE.wall];
+      rgb = colorOf[edgeSurface];
     } else {
       const { distance, along } = nearest(x + 0.5, y + 0.5);
       if (distance <= half) rgb = colorOf[SURFACE.road];
@@ -163,6 +165,6 @@ const start = Array.from({ length: 8 }, (_, i) => {
 
 writeFileSync(
   `${out}track.json`,
-  `${JSON.stringify({ name: design.name, laps: design.laps, lapLength: Math.round(lapLength), start }, null, 2)}\n`,
+  `${JSON.stringify({ name: design.name, theme: design.theme, laps: design.laps, lapLength: Math.round(lapLength), start }, null, 2)}\n`,
 );
 console.log(`Drew ${id}: lap ${Math.round(lapLength)} px, ${design.checkpoints} checkpoints + finish, start grid of ${start.length}.`);

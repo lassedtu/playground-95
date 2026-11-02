@@ -3,7 +3,7 @@
  * Checks a 3-4-Go! track's logic layer, and strips any colour profile from it
  * (browsers may shift colours of images that have one). Needs ImageMagick.
  *
- *   node scripts/three-four-go/check-track.mjs desktop-circuit
+ *   node scripts/three-four-go/check-track.mjs hill-climb
  *
  * Fails when a pixel isn't exactly a palette colour, the finish line or a
  * checkpoint number is missing, or a start position isn't on the road.

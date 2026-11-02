@@ -1,5 +1,5 @@
 import { CAR } from "../data/tuning";
-import { VIEW_HEIGHT, VIEW_WIDTH } from "./camera";
+import { CENTER_Y, VIEW_HEIGHT, VIEW_WIDTH } from "./camera";
 import { bestLap, countdownText, currentLapTime, formatTime, isWrongWay, noteText, ordinal, type Race, type Racer } from "./race";
 import { dot, fromAngle } from "./vector";
 
@@ -47,7 +47,8 @@ export function drawHud(ctx: CanvasRenderingContext2D, race: Race, racer: Racer,
   ctx.fillRect(bar.x, bar.y, Math.round(bar.w * share), bar.h);
   if (racer.car.drift) label(ctx, "DRIFT", bar.x + bar.w, bar.y - 11, 8, "#ffa040", "right");
 
-  const middle = VIEW_HEIGHT / 2 - 30;
+  // Messages sit a little above where the road meets the sky's lower part.
+  const middle = CENTER_Y - 40;
   const countdown = countdownText(race);
   if (racer.finished !== null) {
     label(ctx, place === 1 && race.racers.length > 1 ? "YOU WIN!" : "FINISHED!", VIEW_WIDTH / 2, middle, 22, "#ffff00", "center");
