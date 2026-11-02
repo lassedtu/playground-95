@@ -20,6 +20,8 @@ export type Car = {
   mass: number;
   /** 0 when not drifting, otherwise the side it drifts to (−1 left, 1 right). */
   drift: -1 | 0 | 1;
+  /** Which way a collision pushed it this tick (unit vector), or null. CPUs use it to notice they ran into someone. */
+  bump: Vec2 | null;
   /** Position and heading at the previous tick, for smooth drawing between ticks. */
   previous: { p: Vec2; heading: number };
 };
@@ -48,6 +50,7 @@ export function makeCar(vehicle: Vehicle, x: number, y: number, heading: number)
     width: vehicle.width,
     mass: vehicle.mass,
     drift: 0,
+    bump: null,
     previous: { p: { x, y }, heading },
   };
 }

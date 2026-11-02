@@ -1,7 +1,7 @@
 import { SURFACE } from "../data/palette";
 import { CAR } from "../data/tuning";
 import { type CarInput, NO_INPUT } from "./car";
-import { type Race, type Racer, respawn, started } from "./race";
+import { progress, type Race, type Racer, respawn, started } from "./race";
 import { seededRandom } from "./random";
 import type { Track } from "./track";
 import { clamp, dot, fromAngle, lerp, type Vec2, wrapAngle } from "./vector";
@@ -9,15 +9,19 @@ import { clamp, dot, fromAngle, lerp, type Vec2, wrapAngle } from "./vector";
 /**
  * How a CPU drives. All CPUs know is the road (the logic layer) and where
  * the next checkpoint is; these numbers decide what they do with that.
- * Personalities (step 8) are different values for the same fields.
+ * Personalities (data/personalities.ts) are different values for the same fields.
  */
 export type DrivingStyle = {
   /** Gas when nothing is in the way (0–1). */
   throttle: number;
+  /** Fastest it wants to go, as a share of the car's top speed. */
+  topSpeed: number;
   /** Where across a checkpoint it aims: 0 and 1 are near the road's edges, 0.5 the middle. */
   lane: number;
   /** Each checkpoint, the lane moves by up to this much at random. */
   laneJitter: number;
+  /** In bends, how far it moves towards the inside of the turn (0 = not at all, 1 = right to the kerb). */
+  inside: number;
   /** How far before a checkpoint it starts aiming at the one after (map units). */
   lookahead: number;
   /** How far ahead it looks for the road's edge at top speed (map units). */
@@ -28,7 +32,9 @@ export type DrivingStyle = {
   avoid: number;
   /** Brakes when the target is this far off the nose (radians)… */
   brakeAngle: number;
-  /** …or the road ends this close ahead (map units, at top speed). */
+  /** …give or take this share, picked again at every checkpoint… */
+  brakeJitter: number;
+  /** …or when the road ends this close ahead (map units, at top speed). */
   brakeDistance: number;
   /** Drifts when the target is this far off the nose (radians), or never when null. */
   driftAngle: number | null;
@@ -36,21 +42,27 @@ export type DrivingStyle = {
   wobble: number;
   /** Reaction time, in physics ticks (1/60 s). */
   reaction: number;
+  /** Chance per lap of a mistake: half a second of not looking at the road. */
+  mistakes: number;
 };
 
 export const DEFAULT_STYLE: DrivingStyle = {
   throttle: 1,
+  topSpeed: 1,
   lane: 0.5,
   laneJitter: 0.25,
+  inside: 0,
   lookahead: 90,
   whiskerLength: 70,
   steering: 2.6,
   avoid: 1.4,
   brakeAngle: 1.0,
+  brakeJitter: 0,
   brakeDistance: 30,
   driftAngle: 0.55,
   wobble: 0.08,
   reaction: 5,
+  mistakes: 0,
 };
 
 /** Feelers: angle from the nose (radians, + is right), and how much each one counts. */
@@ -71,6 +83,14 @@ const REVERSE_FOR = 0.8;
 /** …and backing up this often in a short while means it's lost: respawn. */
 const GIVE_UP_REVERSES = 3;
 const GIVE_UP_WINDOW = 8;
+/** A bend this sharp (radians) gets the full `inside` shift… */
+const BEND_FULL = 0.8;
+/** …which goes this far towards the inside edge (0.5 = to the kerb), so it cuts the corner without leaving the road. */
+const INSIDE_REACH = 0.3;
+/** How long a mistake lasts (s). */
+const MISTAKE_LENGTH = 0.5;
+/** After running into the back of a car, it moves to the other side of the road this long (s). */
+const PASS_FOR = 2.5;
 
 export type Whisker = { from: Vec2; to: Vec2; blocked: boolean };
 
@@ -80,13 +100,19 @@ export type CpuDriver = {
   /** Decisions waiting out the reaction time. */
   pending: CarInput[];
   lane: number;
-  /** Gate the lane was picked for. */
+  brakeAngle: number;
+  /** Gate the lane and brake point were picked for. */
   laneFor: number;
   wobblePhase: [number, number];
   stuckFor: number;
   reverseFor: number;
   reverses: number[];
   drifting: boolean;
+  /** This lap's mistake (race time it starts), and the lap it was rolled for. */
+  mistakeAt: number | null;
+  mistakeLap: number;
+  /** Trying to pass: the lane it moved to and until when. */
+  passing: { lane: number; until: number } | null;
   /** What it saw last tick, for the debug view. */
   seen: { target: Vec2; whiskers: Whisker[] } | null;
 };
@@ -98,14 +124,36 @@ export function makeDriver(style: DrivingStyle, seed: number): CpuDriver {
     random,
     pending: Array.from({ length: style.reaction }, () => NO_INPUT),
     lane: style.lane,
+    brakeAngle: style.brakeAngle,
     laneFor: -1,
     wobblePhase: [random() * 10, random() * 10],
     stuckFor: 0,
     reverseFor: 0,
     reverses: [],
     drifting: false,
+    mistakeAt: null,
+    mistakeLap: -1,
+    passing: null,
     seen: null,
   };
+}
+
+/**
+ * Which way the road turns at a gate (radians, + = right) and which lane
+ * value (0 or 1) is the inside of that turn.
+ */
+function bendAt(track: Track, gate: number) {
+  const gates = track.gates;
+  const here = gates[gate];
+  const before = gates[(gate - 1 + gates.length) % gates.length].centre;
+  const after = gates[(gate + 1) % gates.length].centre;
+  const turn = wrapAngle(
+    Math.atan2(after.y - here.centre.y, after.x - here.centre.x) -
+      Math.atan2(here.centre.y - before.y, here.centre.x - before.x),
+  );
+  // Lane 0 is at end a. Is a on the right of the driving direction?
+  const aRight = (here.a.x - here.centre.x) * -here.forward.y + (here.a.y - here.centre.y) * here.forward.x > 0;
+  return { turn, insideLane: turn > 0 === aRight ? 0 : 1 };
 }
 
 const blocks = (surface: number) => surface !== SURFACE.road && surface !== SURFACE.boost;
@@ -141,12 +189,32 @@ function decide(race: Race, racer: Racer, index: number, driver: CpuDriver, dt: 
   const forward = dot(car.v, h);
 
   // Target: the next gate, blending into the one after as it gets close.
+  // Lane (towards the inside of bends, by personality) and brake point are
+  // picked once per gate.
   if (driver.laneFor !== racer.next) {
-    driver.lane = clamp(style.lane + (driver.random() * 2 - 1) * style.laneJitter, 0, 1);
+    const { turn, insideLane } = bendAt(track, racer.next);
+    const sharpness = clamp(Math.abs(turn) / BEND_FULL, 0, 1);
+    const inside = lerp(0.5, insideLane, INSIDE_REACH / 0.5);
+    const lane = lerp(style.lane, inside, style.inside * sharpness);
+    driver.lane = clamp(lane + (driver.random() * 2 - 1) * style.laneJitter, 0, 1);
+    driver.brakeAngle = style.brakeAngle * (1 + (driver.random() * 2 - 1) * style.brakeJitter);
     driver.laneFor = racer.next;
   }
-  const near = laneOf(track, racer.next, driver.lane);
-  const far = laneOf(track, (racer.next + 1) % gates.length, driver.lane);
+  // Ran into the back of someone: try the other side of the road for a bit.
+  if (car.bump && dot(car.bump, h) < -0.5 && !driver.passing) {
+    driver.passing = { lane: driver.lane > 0.5 ? 0.1 : 0.9, until: race.time + PASS_FOR };
+  }
+  if (driver.passing && race.time > driver.passing.until) driver.passing = null;
+  const lane = driver.passing?.lane ?? driver.lane;
+  // One mistake chance per lap, at a random moment during it.
+  if (driver.mistakeLap !== racer.lap) {
+    driver.mistakeLap = racer.lap;
+    driver.mistakeAt = driver.random() < style.mistakes ? race.time + 2 + driver.random() * 14 : null;
+  }
+  const blundering =
+    driver.mistakeAt !== null && race.time >= driver.mistakeAt && race.time < driver.mistakeAt + MISTAKE_LENGTH;
+  const near = laneOf(track, racer.next, lane);
+  const far = laneOf(track, (racer.next + 1) % gates.length, lane);
   const distance = Math.hypot(near.x - car.p.x, near.y - car.p.y);
   const blend = distance < style.lookahead ? (1 - distance / style.lookahead) * 0.7 : 0;
   const target = { x: lerp(near.x, far.x, blend), y: lerp(near.y, far.y, blend) };
@@ -179,7 +247,8 @@ function decide(race: Race, racer: Racer, index: number, driver: CpuDriver, dt: 
   if (front > 0) avoid += (left > right ? 1 : -1) * front;
   const [p1, p2] = driver.wobblePhase;
   const wobble = style.wobble * (Math.sin(race.time * 1.3 + p1) + Math.sin(race.time * 2.9 + p2)) / 2;
-  const steer = clamp(style.steering * error + style.avoid * avoid + wobble, -1, 1);
+  // A mistake: not watching the road (no whiskers) for a moment.
+  const steer = clamp(style.steering * error + (blundering ? 0 : style.avoid * avoid) + wobble, -1, 1);
 
   // Stuck (against a wall or another car): back up for a moment, turning the nose round.
   driver.stuckFor = Math.abs(forward) < STUCK_SPEED && driver.reverseFor <= 0 ? driver.stuckFor + dt : 0;
@@ -203,19 +272,26 @@ function decide(race: Race, racer: Racer, index: number, driver: CpuDriver, dt: 
   // Gas and brakes. It also eases off when the turn after the next gate is
   // sharp, so it doesn't run wide coming out of the bend.
   const fast = forward / CAR.maxSpeed;
-  const wall = whiskers[2].d < style.brakeDistance * fast && fast > 0.3;
-  const sharp = Math.abs(error) > style.brakeAngle && fast > 0.45;
+  const wall = !blundering && whiskers[2].d < style.brakeDistance * fast && fast > 0.3;
+  const sharp = Math.abs(error) > driver.brakeAngle && fast > 0.45;
   const bend = Math.abs(wrapAngle(Math.atan2(far.y - near.y, far.x - near.x) - car.heading));
-  const bendAhead = distance < style.lookahead * 1.5 && bend > style.brakeAngle * 0.7 && fast > 0.7;
+  const bendAhead = distance < style.lookahead * 1.5 && bend > driver.brakeAngle * 0.7 && fast > 0.7;
   const throttle =
-    Math.abs(error) > style.brakeAngle * 0.6 || bendAhead ? style.throttle * 0.6 : style.throttle;
+    fast > style.topSpeed
+      ? 0
+      : Math.abs(error) > driver.brakeAngle * 0.6 || bendAhead
+        ? style.throttle * 0.6
+        : style.throttle;
 
   // Drift through sharp turns at speed, keep it until the turn is nearly
-  // done, but not when the outside of the turn is already close.
+  // done, but not when the outside of the turn is already close, or once
+  // the turn goes the other way (a drift stays locked to the side it started on).
   const driftAngle = style.driftAngle;
   const outside = error > 0 ? left : right;
+  const wrongSide = car.drift !== 0 && Math.sign(error) !== car.drift;
   driver.drifting =
     driftAngle !== null &&
+    !wrongSide &&
     fast > CAR.driftStart + 0.05 &&
     outside < 0.5 &&
     Math.abs(error) > (driver.drifting ? driftAngle * 0.4 : driftAngle);
@@ -233,4 +309,18 @@ export function drive(race: Race, racer: Racer, index: number, driver: CpuDriver
   if (!started(race)) return NO_INPUT;
   driver.pending.push(decide(race, racer, index, driver, dt));
   return driver.pending.shift() ?? NO_INPUT;
+}
+
+/**
+ * Rubber-banding: a CPU this far behind you (in checkpoints) gets a little
+ * more top speed, up to `CATCH_UP.boost` when it's `CATCH_UP.full` behind.
+ * Nobody is slowed down. Set `boost` to 1 to turn it off.
+ */
+export const CATCH_UP = { from: 2, full: 6, boost: 1.05 };
+
+export function catchUp(race: Race, racer: Racer, you: Racer) {
+  if (racer.finished !== null || you.finished !== null) return 1;
+  const behind = progress(race, you) - progress(race, racer);
+  const t = clamp((behind - CATCH_UP.from) / (CATCH_UP.full - CATCH_UP.from), 0, 1);
+  return lerp(1, CATCH_UP.boost, t);
 }

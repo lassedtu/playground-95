@@ -42,3 +42,17 @@ export function drawCpuDebug(
   lineOnGround(ctx, camera, { x: x - 4, y: y - 4 }, { x: x + 4, y: y + 4 }, "#ff00ff");
   lineOnGround(ctx, camera, { x: x - 4, y: y + 4 }, { x: x + 4, y: y - 4 }, "#ff00ff");
 }
+
+/** Debug overlay: a CPU's name and personality, under its car. */
+export function drawNameTag(ctx: CanvasRenderingContext2D, camera: Camera, p: Vec2, text: string) {
+  const at = project(camera, p.x, p.y);
+  if (!at || at.ahead > 260) return;
+  ctx.font = "7px Arial, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  ctx.fillStyle = "rgb(0 0 0 / 0.6)";
+  const width = ctx.measureText(text).width + 4;
+  ctx.fillRect(Math.round(at.x - width / 2), Math.round(at.y + 2), Math.ceil(width), 9);
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText(text, Math.round(at.x), Math.round(at.y + 3));
+}

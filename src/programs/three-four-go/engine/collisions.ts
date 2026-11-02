@@ -172,6 +172,7 @@ function nudge(car: Car, contact: Vec2, impulse: Vec2) {
  * other like billiard balls (a bit soft), with some friction sideways.
  */
 export function collideCars(cars: Car[], contacts: Contact[]) {
+  for (const car of cars) car.bump = null;
   for (let iteration = 0; iteration < COLLISION.iterations; iteration++) {
     for (let i = 0; i < cars.length; i++) {
       for (let j = i + 1; j < cars.length; j++) {
@@ -183,6 +184,8 @@ export function collideCars(cars: Car[], contacts: Contact[]) {
         if (!hit) continue;
 
         const { normal: n, depth, contact } = hit;
+        a.bump = { x: -n.x, y: -n.y };
+        b.bump = n;
         const inverseA = 1 / a.mass;
         const inverseB = 1 / b.mass;
         const share = depth / (inverseA + inverseB);
