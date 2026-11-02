@@ -108,7 +108,7 @@ export const CPU_DRIVERS: readonly { name: string; personality: Personality }[] 
   { name: "Clippy", personality: RECKLESS },
   { name: "Rufus", personality: RECKLESS },
   { name: "Bonzi", personality: CAREFUL },
-  { name: "ScanDisk", personality: CAREFUL },
+  { name: "System32", personality: CAREFUL },
   { name: "Bill", personality: ROOKIE },
   { name: "Dos", personality: SUNDAY },
 ];

@@ -9,6 +9,7 @@ import { formatTime } from "../engine/race";
 import { trackRecords } from "../lib/records";
 import { LAP_CHOICES, MAX_CPUS, type RaceSettings } from "../lib/settings";
 import { CarPreview } from "./car-preview";
+import { CarStatBars } from "./car-stat-bars";
 
 const LIST =
   "m-0 flex list-none flex-col overflow-y-auto border-2 border-t-[#808080] border-r-white border-b-white border-l-[#808080] bg-white p-0.5";
@@ -87,6 +88,7 @@ export function NewRaceDialog({ initial, onStart, onCancel }: NewRaceDialogProps
             <div className="flex h-20 items-center justify-center">
               <CarPreview key={vehicle.name} vehicle={vehicle} />
             </div>
+            <CarStatBars vehicle={vehicle} />
             <ul role="listbox" aria-label="Car" className={`${LIST} h-24 w-full`}>
               {VEHICLES.map((v) => (
                 <ListItem key={v.name} selected={v.name === settings.car} onSelect={() => update({ car: v.name })} onActivate={start}>

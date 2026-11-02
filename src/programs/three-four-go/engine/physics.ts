@@ -46,7 +46,10 @@ export const SURFACES: Record<SurfaceCode, Surface> = {
  */
 export function stepCar(car: Car, input: CarInput, surface: Surface, dt: number) {
   car.previous = { p: { ...car.p }, heading: car.heading };
-  const maxSpeed = CAR.maxSpeed * surface.max;
+  // The car's stats nudge top speed, acceleration, turning and grip a little.
+  const { tune } = car;
+  const maxSpeed = CAR.maxSpeed * surface.max * tune.speed;
+  const accel = CAR.accel * tune.acceleration;
 
   // Drift starts when the button is held while steering at speed, and locks
   // to that side until the button is released or the car slows down.
@@ -62,7 +65,7 @@ export function stepCar(car: Car, input: CarInput, surface: Surface, dt: number)
     ? car.drift * lerp(CAR.driftWide, 1, (input.steer * car.drift + 1) / 2) * CAR.driftTurn
     : input.steer;
   const speedFactor = Math.min(1, Math.abs(forwardBefore) / CAR.turnRef) * Math.sign(forwardBefore);
-  car.heading += turn * CAR.turnRate * speedFactor * dt;
+  car.heading += turn * CAR.turnRate * tune.handling * speedFactor * dt;
 
   // 2. Split the velocity along the new heading.
   const h = fromAngle(car.heading);
@@ -77,17 +80,17 @@ export function stepCar(car: Car, input: CarInput, surface: Surface, dt: number)
     forward =
       forward < -1
         ? Math.min(0, forward + CAR.brake * dt)
-        : forward + (CAR.accel * input.throttle * (1 - forward / top) + push) * dt;
+        : forward + (accel * input.throttle * (1 - forward / top) + push) * dt;
   } else if (input.brake > 0) {
     forward =
       forward > 1
         ? Math.max(0, forward - CAR.brake * input.brake * dt)
-        : forward - CAR.accel * 0.6 * input.brake * Math.max(0, 1 + forward / (maxSpeed * CAR.reverse)) * dt;
+        : forward - accel * 0.6 * input.brake * Math.max(0, 1 + forward / (maxSpeed * CAR.reverse)) * dt;
   }
 
   // 4. Grip: the sideways part dies out. Part of the speed that costs is kept
   //    (pointed forwards), so corners and drifts don't kill your speed.
-  const kept = sideways * Math.exp(-(car.drift ? CAR.driftGrip : CAR.grip) * surface.grip * dt);
+  const kept = sideways * Math.exp(-(car.drift ? CAR.driftGrip : CAR.grip) * surface.grip * tune.handling * dt);
   if (forward > 0) {
     const before = Math.hypot(forward, sideways);
     const after = Math.hypot(forward, kept);

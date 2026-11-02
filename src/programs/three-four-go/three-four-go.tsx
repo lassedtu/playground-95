@@ -126,6 +126,10 @@ export function ThreeFourGo() {
             <li>On a touch screen, use the buttons on the screen.</li>
           </ul>
           <p className="m-0">You start at the back. The CPU drivers each drive their own way: some are fast, some are clumsy.</p>
+          <p className="m-0">
+            Every car has the same number of stat points, spread differently over speed, acceleration and handling. The
+            differences are small: pick the one you like.
+          </p>
           <PanelButtons>
             <Button onClick={() => setPanel(settings ? "none" : "new-race")}>OK</Button>
           </PanelButtons>

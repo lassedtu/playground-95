@@ -1,3 +1,4 @@
+import { statMultipliers, statsFor } from "../data/car-stats";
 import type { Vehicle } from "../data/vehicles";
 import type { Vec2 } from "./vector";
 
@@ -8,6 +9,8 @@ import type { Vec2 } from "./vector";
 export type Car = {
   /** Which car it is: sprites, hitbox size and mass. */
   vehicle: Vehicle;
+  /** The car's stats as physics multipliers (data/car-stats.ts). */
+  tune: { speed: number; acceleration: number; handling: number };
   /** Centre of the hitbox. */
   p: Vec2;
   /** Angle the car points at (0 = +x, π/2 = +y). */
@@ -43,6 +46,7 @@ export const NO_INPUT: CarInput = { throttle: 0, brake: 0, steer: 0, drift: fals
 export function makeCar(vehicle: Vehicle, x: number, y: number, heading: number): Car {
   return {
     vehicle,
+    tune: statMultipliers(statsFor(vehicle.name)),
     p: { x, y },
     heading,
     v: { x: 0, y: 0 },
