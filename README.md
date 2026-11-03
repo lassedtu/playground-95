@@ -8,11 +8,11 @@ Programs open in windows on the desktop, and from the Start menu (Programs, Game
 
 ## Polaroid Camera
 
-This program simulates a polaroid camera. You can take pictures of yourself through your webcam, apply filters, write messages on your polaroids and download the ones you like! Photos can also be sent to Paint for doodling.
+This program simulates a polaroid camera. You can take pictures of yourself through your webcam, apply filters, write messages on your polaroids and download the ones you like! Photos can also be sent to Paint for drawing on them.
 
 ## Paint
 
-A Paint clone with pencil, brush, eraser, fill, shapes and a colour palette. Open images (up to 2048 px) or photos from the camera, zoom in and out, undo, and save your masterpiece as a PNG.
+A Paint clone with pencil, brush, eraser, fill, shapes and a colour palette. Open images (up to 2048 px) or photos from the camera, zoom in and out, undo, and save your drawings as a PNG.
 
 ## Notes
 
