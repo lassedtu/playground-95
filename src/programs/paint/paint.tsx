@@ -114,8 +114,6 @@ export function Paint() {
 
   useEffect(() => () => clearInterval(stroke.current?.sprayTimer), []);
 
-  // --- History ---------------------------------------------------------------
-
   const snapshot = () => {
     const canvas = canvasRef.current!;
     return get2d(canvas).getImageData(0, 0, canvas.width, canvas.height);
@@ -160,8 +158,6 @@ export function Paint() {
     restore(image);
     setHistory({ undo: undoStack.current.length, redo: redoStack.current.length });
   }
-
-  // --- File ------------------------------------------------------------------
 
   /** Replaces the picture with a blank one (or an image) of the given size. */
   function replacePicture(width: number, height: number, image?: CanvasImageSource) {
@@ -226,8 +222,6 @@ export function Paint() {
     ctx.fillStyle = background;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
-
-  // --- Drawing ---------------------------------------------------------------
 
   function toCanvas(event: PointerEvent<HTMLCanvasElement>): Point {
     const canvas = event.currentTarget;
@@ -340,8 +334,6 @@ export function Paint() {
     if (id === "picker" && tool !== "picker") setPreviousTool(tool);
     setTool(id);
   }
-
-  // --- UI --------------------------------------------------------------------
 
   const menus: Menu[] = [
     {

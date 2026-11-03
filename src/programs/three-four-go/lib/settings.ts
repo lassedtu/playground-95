@@ -1,6 +1,7 @@
 import { TRACKS } from "../data/tracks";
 import { VEHICLES } from "../data/vehicles";
 import { CPU_DRIVERS } from "../data/personalities";
+import { LAP_CHOICES } from "../net/protocol";
 
 /** What the New Race dialog picks. */
 export type RaceSettings = {
@@ -11,7 +12,7 @@ export type RaceSettings = {
   cpus: number;
 };
 
-export const LAP_CHOICES = [1, 3, 5] as const;
+export { LAP_CHOICES } from "../net/protocol";
 export const MAX_CPUS = CPU_DRIVERS.length;
 
 const KEY = "playground95.three-four-go.settings";

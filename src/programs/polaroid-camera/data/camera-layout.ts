@@ -32,7 +32,7 @@ function measuredOn(source: Size) {
   };
 }
 
-// --- Front: polaroid-open.png (2534×2537) ---
+// Front: polaroid-open.png (2534×2537).
 const front = measuredOn({ width: 2534, height: 2537 });
 
 /** The selfie mirror's glass, left of the lens. */

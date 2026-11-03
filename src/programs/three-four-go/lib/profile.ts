@@ -1,21 +1,14 @@
+import { cleanName } from "../net/protocol";
+
+export { cleanName, NAME_MAX } from "../net/protocol";
+
 /** You, as other drivers (and the results) see you. */
 export type Profile = { name: string };
-
-export const NAME_MAX = 16;
 
 const KEY = "playground95.three-four-go.profile";
 
 /** Kept for the session too, in case localStorage isn't available. */
 let current: Profile | null = null;
-
-/**
- * A name as it's shown: control characters removed, runs of spaces made
- * one, trimmed, at most NAME_MAX characters. Empty if nothing is left.
- */
-export function cleanName(name: string) {
-  const cleaned = name.replace(/\p{C}/gu, "").replace(/\s+/g, " ").trim();
-  return Array.from(cleaned).slice(0, NAME_MAX).join("").trim();
-}
 
 /** "Player" and a random four-digit number, e.g. "Player 4821". */
 const defaultName = () => `Player ${1000 + Math.floor(Math.random() * 9000)}`;
