@@ -15,6 +15,7 @@
   "vars": {
     // Sites allowed to connect (comma-separated, * matches anything in a
     // part of the address). Requests without an Origin (scripts) are allowed.
-    "ALLOWED_ORIGINS": "http://localhost:3000,https://playground-95.vercel.app"
+    // The 192.168 one is `pnpm dev` opened from a phone on the home network.
+    "ALLOWED_ORIGINS": "http://localhost:3000,http://192.168.*.*:3000,https://playground-95.vercel.app"
   }
 }

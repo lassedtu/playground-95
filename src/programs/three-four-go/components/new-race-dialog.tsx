@@ -1,53 +1,27 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Fieldset, RadioButton, Range } from "@react95/core";
+import { Button, Fieldset, Range } from "@react95/core";
+import { Network3 } from "@react95/icons";
 
-import { TRACKS } from "../data/tracks";
-import { VEHICLES } from "../data/vehicles";
 import { formatTime } from "../engine/race";
 import { trackRecords } from "../lib/records";
-import { LAP_CHOICES, MAX_CPUS, type RaceSettings } from "../lib/settings";
-import { CarPreview } from "./car-preview";
-import { CarStatBars } from "./car-stat-bars";
-
-const LIST =
-  "m-0 flex list-none flex-col overflow-y-auto border-2 border-t-[#808080] border-r-white border-b-white border-l-[#808080] bg-white p-0.5";
-
-function ListItem({ selected, onSelect, onActivate, children }: {
-  selected: boolean;
-  onSelect: () => void;
-  onActivate: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <li role="none">
-      <button
-        type="button"
-        role="option"
-        aria-selected={selected}
-        onClick={onSelect}
-        onDoubleClick={onActivate}
-        className={`flex w-full cursor-default items-center gap-2 border-0 px-1 py-0.5 text-left outline-none focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-dotted focus-visible:outline-black ${selected ? "bg-win-navy text-white" : "bg-transparent"}`}
-      >
-        {children}
-      </button>
-    </li>
-  );
-}
+import { MAX_CPUS, type RaceSettings } from "../lib/settings";
+import { CarPicker, LapsChoice, TrackList } from "./race-pickers";
 
 type NewRaceDialogProps = {
   initial: RaceSettings;
   onStart: (settings: RaceSettings) => void;
   /** Null when there's no race to go back to. */
   onCancel: (() => void) | null;
+  /** Opens Play Online; null when online play isn't available. */
+  onPlayOnline: (() => void) | null;
 };
 
 /** Track, car, laps and number of CPU drivers. */
-export function NewRaceDialog({ initial, onStart, onCancel }: NewRaceDialogProps) {
+export function NewRaceDialog({ initial, onStart, onCancel, onPlayOnline }: NewRaceDialogProps) {
   const [settings, setSettings] = useState(initial);
   const update = (next: Partial<RaceSettings>) => setSettings((s) => ({ ...s, ...next }));
-  const vehicle = VEHICLES.find((v) => v.name === settings.car) ?? VEHICLES[0];
   const records = trackRecords(settings.track);
   const best = records.bestRace[settings.laps];
   const start = () => onStart(settings);
@@ -62,20 +36,7 @@ export function NewRaceDialog({ initial, onStart, onCancel }: NewRaceDialogProps
     >
       <div className="grid grid-cols-2 gap-2">
         <Fieldset legend="Track">
-          <ul role="listbox" aria-label="Track" className={`${LIST} h-24`}>
-            {TRACKS.map((track) => (
-              <ListItem
-                key={track.id}
-                selected={track.id === settings.track}
-                onSelect={() => update({ track: track.id })}
-                onActivate={start}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element -- tiny local thumbnail */}
-                <img src={track.ground.src} alt="" width={32} height={32} className="shrink-0 [image-rendering:pixelated]" />
-                {track.name}
-              </ListItem>
-            ))}
-          </ul>
+          <TrackList value={settings.track} onChange={(track) => update({ track })} onActivate={start} />
           <p className="m-0 mt-1 text-xs">
             Best lap: {records.bestLap === null ? "–" : formatTime(records.bestLap)}
             <br />
@@ -84,32 +45,13 @@ export function NewRaceDialog({ initial, onStart, onCancel }: NewRaceDialogProps
         </Fieldset>
 
         <Fieldset legend="Car">
-          <div className="flex flex-col items-center gap-1">
-            <div className="flex h-20 items-center justify-center">
-              <CarPreview key={vehicle.name} vehicle={vehicle} />
-            </div>
-            <CarStatBars vehicle={vehicle} />
-            <ul role="listbox" aria-label="Car" className={`${LIST} h-24 w-full`}>
-              {VEHICLES.map((v) => (
-                <ListItem key={v.name} selected={v.name === settings.car} onSelect={() => update({ car: v.name })} onActivate={start}>
-                  {v.label}
-                </ListItem>
-              ))}
-            </ul>
-          </div>
+          <CarPicker value={settings.car} onChange={(car) => update({ car })} onActivate={start} />
         </Fieldset>
       </div>
 
       <div className="grid grid-cols-2 gap-2">
         <Fieldset legend="Laps">
-          {/* Same height as the slider's box, laps centred in it. */}
-          <div className="flex h-8 items-center justify-center gap-4">
-            {LAP_CHOICES.map((laps) => (
-              <RadioButton key={laps} name="laps" value={laps} checked={settings.laps === laps} onChange={() => update({ laps })}>
-                {laps}
-              </RadioButton>
-            ))}
-          </div>
+          <LapsChoice value={settings.laps} onChange={(laps) => update({ laps })} />
         </Fieldset>
         <Fieldset legend={`CPU drivers: ${settings.cpus}${settings.cpus === 0 ? " (time trial)" : ""}`}>
           <div className="flex h-8 items-center justify-center">
@@ -126,7 +68,13 @@ export function NewRaceDialog({ initial, onStart, onCancel }: NewRaceDialogProps
         </Fieldset>
       </div>
 
-      <div className="flex justify-end gap-2">
+      <div className="flex items-center justify-end gap-2">
+        {onPlayOnline && (
+          <Button type="button" className="mr-auto flex items-center gap-1.5" onClick={onPlayOnline}>
+            <Network3 variant="16x16_4" aria-hidden className="shrink-0" />
+            Play Online with Friends…
+          </Button>
+        )}
         <Button type="submit" className="min-w-20 font-bold">
           Race!
         </Button>

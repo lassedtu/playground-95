@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useCallback, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { Button, Frame } from "@react95/core";
 
 import { useDesktop } from "@/components/desktop/desktop-context";
@@ -9,23 +9,51 @@ import { StatusBar, StatusBarField } from "@/components/ui/status-bar";
 
 import { NameDialog } from "./components/name-dialog";
 import { NewRaceDialog } from "./components/new-race-dialog";
+import { LobbyDialog } from "./components/online/lobby-dialog";
+import { LobbySettingsDialog } from "./components/online/lobby-settings-dialog";
+import { MessageBox } from "./components/online/message-box";
+import { PasswordDialog } from "./components/online/password-dialog";
+import { PlayOnlineDialog } from "./components/online/play-online-dialog";
+import { problemText } from "./components/online/problems";
 import { type FinishedRace, type RaceControls, RaceView, type ViewOptions, type ViewStats } from "./components/race-view";
 import { type RaceResults, ResultsDialog } from "./components/results-dialog";
 import { formatTime, ordinal } from "./engine/race";
 import { loadProfile, saveProfile } from "./lib/profile";
 import { recordRace } from "./lib/records";
 import { loadSettings, type RaceSettings, saveSettings } from "./lib/settings";
+import { type OnlineProblem, useOnline } from "./lib/use-online";
+import { onlineAvailable } from "./net/client";
+import { MAX_CARS, MAX_CPUS } from "./net/protocol";
 
 /** Must match the id in programs/registry.tsx (used by Race -> Exit). */
 const PROGRAM_ID = "three-four-go";
 /** Debug views only exist when running locally (`next dev`), not in production. */
 const DEV = process.env.NODE_ENV === "development";
 
-type Panel = "none" | "new-race" | "name" | "results" | "help" | "about";
+type Panel =
+  | "none"
+  | "new-race"
+  | "name"
+  | "results"
+  | "help"
+  | "about"
+  | "online"
+  | "create-lobby"
+  | "lobby"
+  | "lobby-settings"
+  | "password"
+  | "message";
+
+/** Panels opened over another one, which go back to it when closed. */
+const OVERLAYS: readonly Panel[] = ["name", "help", "about", "lobby-settings", "password", "message"];
 
 export function ThreeFourGo() {
   const { closeWindow } = useDesktop();
   const [panel, setPanel] = useState<Panel>("new-race");
+  /** Where a panel opened over another one (Your Name, Help, a message…) goes back to. */
+  const [returnTo, setReturnTo] = useState<Panel | null>(null);
+  const [message, setMessage] = useState("");
+  const [passwordFor, setPasswordFor] = useState<{ code: string; wrong: boolean } | null>(null);
   const [settings, setSettings] = useState<RaceSettings | null>(null);
   const [lastSettings, setLastSettings] = useState<RaceSettings>(loadSettings);
   const [profile, setProfile] = useState(loadProfile);
@@ -35,6 +63,74 @@ export function ThreeFourGo() {
   const controls = useRef<RaceControls | null>(null);
   const onStats = useCallback((next: ViewStats) => setStats(next), []);
   const toggle = (key: keyof ViewOptions) => setOptions((o) => ({ ...o, [key]: !o[key] }));
+
+  // What the online callbacks need to know about the window right now.
+  const panelRef = useRef(panel);
+  useEffect(() => {
+    panelRef.current = panel;
+  }, [panel]);
+
+  const onJoined = useCallback(() => {
+    // Into the lobby: any single-player race stops.
+    setSettings(null);
+    setStats(null);
+    setReturnTo(null);
+    setPanel("lobby");
+  }, []);
+  const onProblem = useCallback((problem: OnlineProblem) => {
+    if (problem.kind === "refused" && problem.reason === "password") {
+      setPasswordFor({ code: problem.code, wrong: problem.triedPassword });
+      setReturnTo("online");
+      setPanel("password");
+      return;
+    }
+    setMessage(problemText(problem));
+    setReturnTo(panelRef.current === "create-lobby" ? "create-lobby" : "online");
+    setPanel("message");
+  }, []);
+  const { online, join, create, leave, changeSettings } = useOnline({
+    name: profile.name,
+    car: lastSettings.car,
+    onJoined,
+    onProblem,
+  });
+  const lobby = online.kind === "lobby" ? online.lobby : null;
+  const joining = online.kind === "joining";
+
+  /** The panel to fall back to: the lobby while in one, else the race (or New Race if there isn't one). */
+  const home: Panel = lobby ? "lobby" : joining ? "online" : settings ? "none" : "new-race";
+  /** Opens a panel over the current one (an overlay over an overlay goes back to the first one's place). */
+  const openOver = (next: Panel) => {
+    if (!OVERLAYS.includes(panel)) setReturnTo(panel === "none" || panel === "results" ? null : panel);
+    setPanel(next);
+  };
+  /** Switches to a main panel. */
+  const show = (next: Panel) => {
+    setReturnTo(null);
+    setPanel(next);
+  };
+  const back = () => {
+    setPanel(returnTo ?? home);
+    setReturnTo(null);
+  };
+  const leaveLobby = () => {
+    leave();
+    setReturnTo(null);
+    setPanel("online");
+  };
+  const chooseCar = (car: string) => {
+    const next = { ...lastSettings, car };
+    saveSettings(next);
+    setLastSettings(next);
+  };
+  const joinListed = (code: string, locked: boolean) => {
+    if (locked) {
+      setPasswordFor({ code, wrong: false });
+      openOver("password");
+    } else {
+      join(code, "");
+    }
+  };
 
   const onFinish = useCallback((race: FinishedRace) => {
     const { newRace, newLap } = recordRace(race.settings.track, race.settings.laps, race.time, race.bestLap);
@@ -59,11 +155,14 @@ export function ThreeFourGo() {
     {
       label: "Race",
       entries: [
-        { label: "New Race…", onSelect: () => setPanel("new-race") },
-        { label: "Your Name…", onSelect: () => setPanel("name") },
+        { label: "New Race…", disabled: !!lobby || joining, onSelect: () => show("new-race") },
+        { label: "Play Online…", disabled: !onlineAvailable, onSelect: () => show(lobby ? "lobby" : joining ? panel : "online") },
+        { label: "Your Name…", onSelect: () => openOver("name") },
+        "divider",
         { label: "Restart", shortcut: "F2", disabled: !settings, onSelect: restart },
         { label: "Pause", shortcut: "P", disabled: !settings, checked: stats?.paused ?? false, onSelect: () => controls.current?.togglePause() },
         "divider",
+        ...(lobby ? [{ label: "Leave Lobby", onSelect: leaveLobby }] : []),
         { label: "Exit", onSelect: () => closeWindow(PROGRAM_ID) },
       ],
     },
@@ -81,33 +180,46 @@ export function ThreeFourGo() {
     {
       label: "Help",
       entries: [
-        { label: "How to Play", onSelect: () => setPanel("help") },
-        { label: "About 3-4-Go!…", onSelect: () => setPanel("about") },
+        { label: "How to Play", onSelect: () => openOver("help") },
+        { label: "About 3-4-Go!…", onSelect: () => openOver("about") },
       ],
     },
   ];
 
-  const message = !settings
-    ? "Pick a track and a car."
-    : !stats
-      ? "Loading…"
-      : stats.finished
-        ? `Finished! Press F2 to race again.`
-        : stats.paused
-          ? "Paused. Press P to carry on."
-          : stats.track;
+  const status = lobby
+    ? `Lobby ${lobby.code}: ${lobby.players.length}/${lobby.settings.maxPlayers} players`
+    : joining
+      ? "Joining…"
+      : !settings
+        ? onlineAvailable
+          ? "Pick a track and a car, or play online with friends."
+          : "Pick a track and a car."
+        : !stats
+          ? "Loading…"
+          : stats.finished
+            ? `Finished! Press F2 to race again.`
+            : stats.paused
+              ? "Paused. Press P to carry on."
+              : stats.track;
 
-  const dialog: Record<Exclude<Panel, "none">, { title: string; width: string; body: ReactNode }> = {
+  const dialog: Record<Exclude<Panel, "none">, { title: string; width: string; body: ReactNode; escape?: () => void }> = {
     "new-race": {
       title: "New Race",
       width: "w-[26rem]",
+      escape: settings ? () => setPanel("none") : undefined,
       body: (
-        <NewRaceDialog initial={lastSettings} onStart={start} onCancel={settings ? () => setPanel("none") : null} />
+        <NewRaceDialog
+          initial={lastSettings}
+          onStart={start}
+          onCancel={settings ? () => setPanel("none") : null}
+          onPlayOnline={onlineAvailable ? () => show("online") : null}
+        />
       ),
     },
     name: {
       title: "Your Name",
       width: "w-64",
+      escape: back,
       body: (
         <NameDialog
           initial={profile.name}
@@ -115,15 +227,120 @@ export function ThreeFourGo() {
             const next = { ...profile, name };
             saveProfile(next);
             setProfile(next);
-            setPanel(settings ? "none" : "new-race");
+            back();
           }}
-          onCancel={() => setPanel(settings ? "none" : "new-race")}
+          onCancel={back}
         />
       ),
+    },
+    online: {
+      title: "Play Online",
+      width: "w-[30rem]",
+      escape: () => {
+        if (joining) leave();
+        setPanel(settings ? "none" : "new-race");
+      },
+      body: (
+        <PlayOnlineDialog
+          playerName={profile.name}
+          onChangeName={() => openOver("name")}
+          onJoin={joinListed}
+          onCreate={() => setPanel("create-lobby")}
+          onCancel={() => {
+            if (joining) leave();
+            setPanel(settings ? "none" : "new-race");
+          }}
+          busy={joining}
+        />
+      ),
+    },
+    "create-lobby": {
+      title: "Create Lobby",
+      width: "w-[30rem]",
+      escape: () => {
+        if (joining) leave();
+        setPanel("online");
+      },
+      body: (
+        <LobbySettingsDialog
+          mode="create"
+          initial={{
+            name: `${profile.name}'s lobby`,
+            password: "",
+            track: lastSettings.track,
+            laps: lastSettings.laps,
+            maxPlayers: MAX_CARS,
+            cpus: Math.min(lastSettings.cpus, MAX_CPUS),
+          }}
+          onSave={(next) => void create(next)}
+          onCancel={() => {
+            if (joining) leave();
+            setPanel("online");
+          }}
+          busy={joining}
+        />
+      ),
+    },
+    lobby: {
+      title: "Lobby",
+      width: "w-[38rem]",
+      body: online.kind === "lobby" && (
+        <LobbyDialog
+          lobby={online.lobby}
+          you={online.you}
+          car={lastSettings.car}
+          onCar={chooseCar}
+          onChangeName={() => openOver("name")}
+          onSettings={() => openOver("lobby-settings")}
+          onLeave={leaveLobby}
+        />
+      ),
+    },
+    "lobby-settings": {
+      title: "Lobby Settings",
+      width: "w-[30rem]",
+      escape: back,
+      body: lobby && (
+        <LobbySettingsDialog
+          mode="edit"
+          initial={lobby.settings}
+          players={lobby.players.length}
+          onSave={(next) => {
+            changeSettings(next);
+            back();
+          }}
+          onCancel={back}
+        />
+      ),
+    },
+    password: {
+      title: "Password",
+      width: "w-80",
+      escape: back,
+      body: passwordFor && (
+        <PasswordDialog
+          key={`${passwordFor.code}-${passwordFor.wrong}`}
+          code={passwordFor.code}
+          wrong={passwordFor.wrong}
+          onJoin={(password) => {
+            setReturnTo(null);
+            setPanel("online");
+            join(passwordFor.code, password);
+          }}
+          onCancel={back}
+        />
+      ),
+    },
+    message: {
+      title: "3-4-Go!",
+      width: "w-80",
+      escape: back,
+      body: <MessageBox text={message} onClose={back} />,
     },
     results: {
       title: "Results",
       width: "w-[26rem]",
+      escape: () => setPanel("none"),
       body: results && (
         <ResultsDialog results={results} onAgain={restart} onNewRace={() => setPanel("new-race")} onClose={() => setPanel("none")} />
       ),
@@ -131,6 +348,7 @@ export function ThreeFourGo() {
     help: {
       title: "How to Play",
       width: "w-[22rem]",
+      escape: back,
       body: (
         <>
           <p className="m-0 font-bold">Race to the line!</p>
@@ -167,7 +385,7 @@ export function ThreeFourGo() {
             <li>Race → Your Name… changes the name the results show for you.</li>
           </ul>
           <PanelButtons>
-            <Button onClick={() => setPanel(settings ? "none" : "new-race")}>OK</Button>
+            <Button onClick={back}>OK</Button>
           </PanelButtons>
         </>
       ),
@@ -175,6 +393,7 @@ export function ThreeFourGo() {
     about: {
       title: "About 3-4-Go!",
       width: "w-72",
+      escape: back,
       body: (
         <>
           <p className="m-0 font-bold">3-4-Go!</p>
@@ -188,7 +407,7 @@ export function ThreeFourGo() {
           </p>
           <p className="m-0">Skies from Nasha&apos;s Parallax Worlds.</p>
           <PanelButtons>
-            <Button onClick={() => setPanel(settings ? "none" : "new-race")}>OK</Button>
+            <Button onClick={back}>OK</Button>
           </PanelButtons>
         </>
       ),
@@ -236,10 +455,8 @@ export function ThreeFourGo() {
               bgColor="$material"
               className={`flex max-h-full max-w-full flex-col overflow-auto p-0.5 ${open.width}`}
               onKeyDown={(event: React.KeyboardEvent) => {
-                if (event.key === "Escape" && settings) {
-                  // Esc twice is the boss key: let it through, just close the dialog too.
-                  setPanel("none");
-                }
+                // Esc twice is the boss key: let it through, just close the dialog too.
+                if (event.key === "Escape") open.escape?.();
               }}
             >
               <div className="flex h-[18px] items-center bg-win-navy px-1 text-white">
@@ -252,7 +469,7 @@ export function ThreeFourGo() {
       </div>
 
       <StatusBar>
-        <StatusBarField grow>{message}</StatusBarField>
+        <StatusBarField grow>{status}</StatusBarField>
         <StatusBarField width={64}>
           <span aria-hidden>{stats ? `Lap ${stats.lap}/${stats.laps}` : ""}</span>
         </StatusBarField>

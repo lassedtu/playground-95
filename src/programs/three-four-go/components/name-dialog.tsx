@@ -31,10 +31,6 @@ export function NameDialog({ initial, onSave, onCancel }: NameDialogProps) {
         if (cleaned) onSave(cleaned);
         else setError(true);
       }}
-      onKeyDown={(event) => {
-        // Not stopped: Esc twice is still the boss key.
-        if (event.key === "Escape") onCancel();
-      }}
     >
       <label htmlFor="three-four-go-name">Your name:</label>
       <Input

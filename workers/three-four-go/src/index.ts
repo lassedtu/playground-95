@@ -71,7 +71,8 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     const origin = request.headers.get("Origin");
-    if (!allowedOrigin(origin, env)) return new Response("Forbidden", { status: 403 });
+    // Readable by the refused site (with CORS headers), so the game can say why.
+    if (!allowedOrigin(origin, env)) return json({ error: "origin" }, 403, origin);
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors(origin) });
 
     const parts = url.pathname.split("/").filter(Boolean);

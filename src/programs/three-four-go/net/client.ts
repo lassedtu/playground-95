@@ -23,8 +23,12 @@ const PING_EVERY = 30_000;
 const SYNC_SAMPLES = 5;
 const SYNC_SPACING = 200;
 
-/** Why talking to the server failed: it's over its free daily limit (or down), or we can't reach it. */
-export type ServerProblem = "busy" | "unreachable" | "bad-reply";
+/**
+ * Why talking to the server failed: it's over its free daily limit (or
+ * down), we can't reach it, it doesn't allow this site (ALLOWED_ORIGINS), or
+ * it answered nonsense.
+ */
+export type ServerProblem = "busy" | "unreachable" | "not-allowed" | "bad-reply";
 
 export class ServerError extends Error {
   constructor(readonly problem: ServerProblem) {
@@ -42,6 +46,7 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
   }
   // Over the free plan's daily limit, Cloudflare answers with errors until 00:00 UTC.
   if (response.status === 429 || response.status >= 500) throw new ServerError("busy");
+  if (response.status === 403) throw new ServerError("not-allowed");
   if (!response.ok) throw new ServerError("bad-reply");
   try {
     return (await response.json()) as T;

@@ -27,6 +27,7 @@ import { loadTrack, surfaceAt, type Track } from "../engine/track";
 import { lerp, wrapAngle } from "../engine/vector";
 import { type RaceEntry, soloLineup, soloVehicles } from "../lib/lineup";
 import type { RaceSettings } from "../lib/settings";
+import { onlineAvailable } from "../net/client";
 import type { ResultRow } from "./results-dialog";
 import { TouchControls } from "./touch-controls";
 
@@ -371,7 +372,7 @@ export function RaceView({ settings, options, hold, playerName, onStats, onFinis
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
     if (!settings) {
-      drawMessage(ctx, "3-4-Go!", "Pick a track and a car to start.");
+      drawMessage(ctx, "3-4-Go!", onlineAvailable ? "Race the CPUs, or play online with friends." : "Pick a track and a car to start.");
       return;
     }
     const refs: Refs = {
