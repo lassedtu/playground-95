@@ -26,8 +26,10 @@ import { type CarPose, drawCars, loadSpriteSheets, type SpriteSheets } from "../
 import { loadTrack, surfaceAt, type Track } from "../engine/track";
 import { lerp, wrapAngle } from "../engine/vector";
 import { type RaceEntry, soloLineup, soloVehicles } from "../lib/lineup";
+import type { OnlineRace } from "../lib/online-race";
 import type { RaceSettings } from "../lib/settings";
 import { onlineAvailable } from "../net/client";
+import { type CarState, STATE_RATE } from "../net/protocol";
 import type { ResultRow } from "./results-dialog";
 import { TouchControls } from "./touch-controls";
 
@@ -60,8 +62,15 @@ export type ViewOptions = {
   logic: boolean;
 };
 
-/** A finished race, as the results dialog shows it. */
-export type FinishedRace = { settings: RaceSettings; trackName: string; rows: ResultRow[]; time: number; bestLap: number | null };
+/** A finished race, as the results dialog shows it (online, the server's results come separately). */
+export type FinishedRace = {
+  settings: RaceSettings;
+  trackName: string;
+  rows: ResultRow[];
+  time: number;
+  bestLap: number | null;
+  online: boolean;
+};
 
 /** What the window can tell a running race to do. */
 export type RaceControls = { restart(): void; togglePause(): void; press(code: string, down: boolean): void };
@@ -69,6 +78,8 @@ export type RaceControls = { restart(): void; togglePause(): void; press(code: s
 type RaceViewProps = {
   /** The race to run; a new object starts a new race. Null shows a title screen. */
   settings: RaceSettings | null;
+  /** Racing online: the grid and the shared clock (with `settings` for the track and laps). */
+  online: OnlineRace | null;
   options: ViewOptions;
   /** Holds the race (e.g. while a dialog is open over it). */
   hold: boolean;
@@ -106,13 +117,18 @@ function trackFor(id: string) {
   return loaded;
 }
 
+/** A number rounded to `places` decimals (to keep the state messages short). */
+const round = (value: number, places: number) => Math.round(value * 10 ** places) / 10 ** places;
+
 /**
  * Starts a race on a loaded track; returns a function that stops it all.
- * `lineup` gives the grid (called again on every restart).
+ * `lineup` gives the grid (called again on every restart). Online, the
+ * race runs on the shared clock and can't be paused or restarted.
  */
 function startRacing(
   ctx: CanvasRenderingContext2D,
   lineup: () => RaceEntry[],
+  online: OnlineRace | null,
   settings: RaceSettings,
   track: Track,
   sky: LoadedSky,
@@ -143,6 +159,9 @@ function startRacing(
   let place = 1;
   let recentContacts: Contact[] = [];
   let contactsAt = 0;
+  let driverSeed = 0;
+  /** Online: cars whose finish has been sent. */
+  const finishSent = new Set<number>();
 
   const restart = () => {
     entries = lineup().slice(0, track.start.length);
@@ -153,13 +172,14 @@ function startRacing(
       car.fixed = entry.control.kind === "remote";
       return car;
     });
-    const seed = Math.floor(random() * 1e9);
+    driverSeed = Math.floor(random() * 1e9);
     drivers = entries.map(({ control }, i) =>
-      control.kind === "remote" ? null : makeDriver(control.kind === "cpu" ? control.style : DEFAULT_STYLE, seed + i),
+      control.kind === "remote" ? null : makeDriver(control.kind === "cpu" ? control.style : DEFAULT_STYLE, driverSeed + i),
     );
     known = entries.map((e) => e.control.kind !== "remote");
     race = makeRace(track, cars, settings.laps);
     entries.forEach((e, i) => (race.racers[i].external = e.control.kind === "remote"));
+    if (online) race.time = online.raceTime();
     previousCamera = camera = cameraBehind(cars[yourIndex]);
     paused = false;
     reported = false;
@@ -195,6 +215,7 @@ function startRacing(
       trackName: track.name,
       time: you.finished ?? 0,
       bestLap: bestLap(you),
+      online: online !== null,
       rows: standings(race).map((i) => ({
         name: i === yourIndex ? refs.playerName.current : entries[i].name,
         car: entries[i].vehicle.label,
@@ -205,8 +226,39 @@ function startRacing(
     };
   };
 
+  /** You've just become host: the CPUs are yours to drive now, from where they are. */
+  const takeOverCpus = () => {
+    entries.forEach((entry, i) => {
+      const { control } = entry;
+      if (control.kind !== "remote" || !control.cpu) return;
+      entries[i] = { ...entry, control: { kind: "cpu", style: control.cpu } };
+      cars[i].fixed = false;
+      race.racers[i].external = false;
+      drivers[i] = makeDriver(control.cpu, driverSeed + i);
+      known[i] = true;
+    });
+  };
+
+  /** Online: tells the server about cars (yours, and the CPUs when hosting) that just finished. */
+  const sendFinishes = () => {
+    if (!online) return;
+    const hosting = online.hosting();
+    race.racers.forEach((racer, i) => {
+      if (racer.finished === null || finishSent.has(i)) return;
+      if (i !== yourIndex && !(hosting && entries[i].control.kind === "cpu")) return;
+      finishSent.add(i);
+      online.send({ type: "finish", slot: i, time: racer.finished, bestLap: bestLap(racer) });
+    });
+  };
+
   const update = (dt: number) => {
-    if (paused || refs.hold.current) return;
+    if (online) {
+      // On the shared clock (updateRace adds this tick's dt).
+      race.time = online.raceTime() - dt;
+      if (online.hosting()) takeOverCpus();
+    } else if (paused || refs.hold.current) {
+      return;
+    }
     const player = cars[yourIndex];
     const you = race.racers[yourIndex];
     const before = { ...player.p };
@@ -223,8 +275,8 @@ function startRacing(
             : NO_INPUT
           : drive(race, race.racers[i], i, drivers[i]!, dt);
       const surface = SURFACES[surfaceAt(track, car.p.x, car.p.y)];
-      // CPUs well behind you get a little extra top speed.
-      const boost = i === yourIndex ? 1 : catchUp(race, race.racers[i], you);
+      // CPUs well behind you get a little extra top speed (not online: there's more than one "you").
+      const boost = i === yourIndex || online ? 1 : catchUp(race, race.racers[i], you);
       stepCar(car, input, boost === 1 ? surface : { ...surface, max: surface.max * boost }, dt);
     });
     // Bumps: cars against each other first, then walls (walls always win).
@@ -240,12 +292,14 @@ function startRacing(
     // Laps and the clock follow the cars' movement. A respawn moves the car
     // without it driving there; the camera jumps with it.
     updateRace(race, dt);
+    sendFinishes();
     place = standings(race).indexOf(yourIndex) + 1;
     if (Math.hypot(player.p.x - before.x, player.p.y - before.y) > TELEPORT) camera = cameraBehind(player);
     previousCamera = camera;
     camera = followCar(camera, player, dt);
 
-    if (!reported && you.finished !== null && race.time - you.finished > RESULTS_AFTER) {
+    // Online straight away (the server's results follow); alone after a moment on the finish screen.
+    if (!reported && you.finished !== null && (online || race.time - you.finished > RESULTS_AFTER)) {
       reported = true;
       refs.onFinish.current(finishedRace());
     }
@@ -258,7 +312,7 @@ function startRacing(
   });
 
   const render = (alpha: number) => {
-    const still = paused || refs.hold.current;
+    const still = !online && (paused || refs.hold.current);
     const t = still ? 1 : alpha;
     const options = refs.options.current;
     const view = lerpCamera(previousCamera, camera, t);
@@ -285,13 +339,43 @@ function startRacing(
   const loop = createLoop(update, render);
   refs.loop.current = loop;
   refs.controls.current = {
-    restart,
+    restart: () => !online && restart(),
     togglePause: () => {
+      if (online) return;
       paused = !paused;
       render(1);
     },
     press: keyboard.press,
   };
+
+  // Online: your car (and, when hosting, the CPUs) to the others, ~15 times a second.
+  // A timer rather than the game loop, so it keeps going (as a ghost) while the window is hidden.
+  const sender = online
+    ? setInterval(() => {
+      const away = !refs.loop.current?.running;
+      const hosting = online.hosting();
+      const states: CarState[] = [];
+      cars.forEach((car, i) => {
+        if (i !== yourIndex && !(hosting && entries[i].control.kind === "cpu")) return;
+        const racer = race.racers[i];
+        states.push([
+          i,
+          round(car.p.x, 1),
+          round(car.p.y, 1),
+          away ? 0 : round(car.v.x, 1),
+          away ? 0 : round(car.v.y, 1),
+          round(car.heading, 3),
+          car.drift,
+          away ? 1 : 0,
+          racer.lap,
+          racer.next,
+          racer.last,
+          racer.finished === null ? -1 : round(racer.finished, 3),
+        ]);
+      });
+      online.send({ type: "state", t: away ? online.raceTime() : race.time, cars: states });
+    }, 1000 / STATE_RATE)
+    : undefined;
   render(0);
   if (refs.visible.current) loop.start();
 
@@ -311,6 +395,7 @@ function startRacing(
   }, 250);
 
   return () => {
+    clearInterval(sender);
     loop.stop();
     refs.loop.current = null;
     refs.controls.current = null;
@@ -336,7 +421,7 @@ function drawMessage(ctx: CanvasRenderingContext2D, title: string, text: string)
  * keeping its aspect ratio; whole-number scales when there's room for 2× or
  * more. The game loop only runs while the view is on screen.
  */
-export function RaceView({ settings, options, hold, playerName, onStats, onFinish, controls }: RaceViewProps) {
+export function RaceView({ settings, online, options, hold, playerName, onStats, onFinish, controls }: RaceViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // Mutable values the game loop reads; kept up to date by the effect below.
   const optionsRef = useRef(options);
@@ -390,12 +475,13 @@ export function RaceView({ settings, options, hold, playerName, onStats, onFinis
     let cancelled = false;
     drawMessage(ctx, "3-4-Go!", "Loading track…");
     const { yours, theirs } = soloVehicles(settings);
+    const vehicles = online ? online.entries.map((e) => e.vehicle) : [yours, ...theirs];
     const random = seededRandom(Date.now() >>> 0);
-    Promise.all([trackFor(settings.track), loadSpriteSheets([yours, ...theirs])]).then(
+    Promise.all([trackFor(settings.track), loadSpriteSheets(vehicles)]).then(
       ([{ track, sky }, sheets]) => {
         if (cancelled) return;
-        const lineup = () => soloLineup(settings, track.start.length, random);
-        stop = startRacing(ctx, lineup, settings, track, sky, sheets, keyboard, refs);
+        const lineup = online ? () => online.entries : () => soloLineup(settings, track.start.length, random);
+        stop = startRacing(ctx, lineup, online, settings, track, sky, sheets, keyboard, refs);
       },
       () => !cancelled && drawMessage(ctx, "3-4-Go!", "Couldn't load the track."),
     );
@@ -404,7 +490,7 @@ export function RaceView({ settings, options, hold, playerName, onStats, onFinis
       stop();
       keyboard.dispose();
     };
-  }, [settings, controls]);
+  }, [settings, online, controls]);
 
   // Paused while minimized or scrolled out of view (and so behind the boss screen).
   useEffect(() => {

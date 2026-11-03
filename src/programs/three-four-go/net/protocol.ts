@@ -5,7 +5,7 @@
  */
 
 /** Bumped when the messages change; older clients are told to reload. */
-export const PROTOCOL = 1;
+export const PROTOCOL = 2;
 
 /** Cars on the grid, players and CPUs together. */
 export const MAX_CARS = 8;
@@ -20,8 +20,17 @@ export const CODE_LENGTH = 5;
 export const NAME_MAX = 16;
 export const LOBBY_NAME_MAX = 32;
 export const PASSWORD_MAX = 32;
-/** Longest message either side accepts, in characters. */
-export const MESSAGE_MAX = 1024;
+/** Longest message either side accepts, in characters (a host's state with 8 cars is ~600). */
+export const MESSAGE_MAX = 2048;
+
+/** Car states each player sends a second during a race. */
+export const STATE_RATE = 15;
+/** From the host pressing Start to GO (loading the track, then "3… 4…"), in ms. */
+export const START_DELAY = 4000;
+/** After the first player finishes, the rest get this long (ms) before the results. */
+export const RESULTS_GRACE = 30_000;
+/** A race ends after this long (ms) whatever happens. */
+export const RACE_LIMIT = 15 * 60_000;
 
 /**
  * Text as it's shown: control characters removed, runs of spaces made one,
@@ -111,6 +120,43 @@ export const DEFAULT_LOBBY: LobbySettings = { name: "Lobby", track: "hill-climb"
 
 export type RefusedReason = "password" | "full" | "racing" | "gone" | "version";
 
+/**
+ * One car on an online race's grid. `slot` is its place on the grid (and its
+ * index in the race). CPUs are CPU_DRIVERS[cpu]; their cars are worked out
+ * by each game the same way (the cars no player picked).
+ */
+export type GridEntry =
+  | { slot: number; kind: "player"; id: string; name: string; car: string }
+  | { slot: number; kind: "cpu"; cpu: number };
+
+/**
+ * A car's state at a moment of the race, as compact as it gets:
+ * [slot, x, y, vx, vy, heading, drift, ghost, lap, next gate, last gate, finish time (-1 = not yet)].
+ */
+export type CarState = [
+  slot: number,
+  x: number,
+  y: number,
+  vx: number,
+  vy: number,
+  heading: number,
+  drift: number,
+  ghost: number,
+  lap: number,
+  next: number,
+  last: number,
+  finished: number,
+];
+
+/** One line of an online race's results, in finishing order. */
+export type ResultEntry = { slot: number; time: number | null; bestLap: number | null; left: boolean };
+
+const isNumber = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
+
+/** Whether untrusted input is a CarState (right length, all numbers). */
+export const isCarState = (value: unknown): value is CarState =>
+  Array.isArray(value) && value.length === 12 && value.every(isNumber);
+
 /** Game -> server. */
 export type ClientMessage =
   | { type: "hello"; protocol: number; name: string; car: string; password: string }
@@ -118,14 +164,24 @@ export type ClientMessage =
   | { type: "car"; car: string }
   | { type: "name"; name: string }
   /** Clock sync: the server answers with its time. */
-  | { type: "time"; sent: number };
+  | { type: "time"; sent: number }
+  /** Host: start the race. */
+  | { type: "start" }
+  /** Your car (and, from the host, the CPUs) at race time `t`; passed on to the others. */
+  | { type: "state"; t: number; cars: CarState[] }
+  /** A car crossed the line for the last time (yours, or a CPU from the host). */
+  | { type: "finish"; slot: number; time: number; bestLap: number | null };
 
 /** Server -> game. */
 export type ServerMessage =
   | { type: "welcome"; you: string; lobby: LobbyState }
   | { type: "refused"; reason: RefusedReason }
   | { type: "lobby"; lobby: LobbyState }
-  | { type: "time"; sent: number; server: number };
+  | { type: "time"; sent: number; server: number }
+  /** GO is at `goAt` on the server's clock (ms). */
+  | { type: "start"; goAt: number; track: string; laps: number; grid: GridEntry[] }
+  | { type: "state"; t: number; cars: CarState[] }
+  | { type: "results"; rows: ResultEntry[] };
 
 /** Sent as plain text (not JSON) to keep a connection open; answered with "pong" for free. */
 export const PING = "ping";

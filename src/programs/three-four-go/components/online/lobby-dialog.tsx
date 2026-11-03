@@ -19,6 +19,8 @@ type LobbyDialogProps = {
   onChangeName: () => void;
   /** Host only: opens the lobby settings. */
   onSettings: () => void;
+  /** Host only: starts the race. */
+  onStart: () => void;
   onLeave: () => void;
 };
 
@@ -27,12 +29,14 @@ const carLabel = (name: string) => VEHICLES.find((v) => v.name === name)?.label 
 const ROW = "flex items-center gap-1 px-1 py-0.5";
 
 /** The waiting room: the code to share, who's in, your car, and (for the host) the settings and Start. */
-export function LobbyDialog({ lobby, you, car, onCar, onChangeName, onSettings, onLeave }: LobbyDialogProps) {
+export function LobbyDialog({ lobby, you, car, onCar, onChangeName, onSettings, onStart, onLeave }: LobbyDialogProps) {
   const [copied, setCopied] = useState(false);
   const { settings, players } = lobby;
   const isHost = players.find((p) => p.id === you)?.host ?? false;
   const cpus = cpusFor(settings, players.length);
   const openSeats = Math.max(0, settings.maxPlayers - players.length);
+  const racing = lobby.phase === "racing";
+  const canStart = isHost && !racing && players.length >= MIN_PLAYERS;
 
   useEffect(() => {
     if (!copied) return;
@@ -124,16 +128,16 @@ export function LobbyDialog({ lobby, you, car, onCar, onChangeName, onSettings, 
 
       <div className="flex items-center justify-end gap-2">
         <span className="mr-auto text-xs" role="status">
-          {isHost
-            ? players.length < MIN_PLAYERS
-              ? `Share the code: a race needs at least ${MIN_PLAYERS} players.`
-              : // Until online racing is in (step 15 of the plan).
-                "Online races can't be started yet."
-            : "Waiting for the host to start the race…"}
+          {racing
+            ? "A race is on…"
+            : isHost
+              ? players.length < MIN_PLAYERS
+                ? `Share the code: a race needs at least ${MIN_PLAYERS} players.`
+                : "Everyone's here? Start the race!"
+              : "Waiting for the host to start the race…"}
         </span>
         {isHost && (
-          // Starting a race comes with online racing (next step of the plan).
-          <Button className="min-w-24 font-bold" disabled>
+          <Button className="min-w-24 font-bold" disabled={!canStart} onClick={onStart}>
             Start Race
           </Button>
         )}

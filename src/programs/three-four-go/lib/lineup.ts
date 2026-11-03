@@ -8,7 +8,8 @@ import type { RaceSettings } from "./settings";
 export type Control =
   | { kind: "you" }
   | { kind: "cpu"; style: DrivingStyle }
-  | { kind: "remote"; car: RemoteCar };
+  /** `cpu`: a CPU the host drives, which you take over if you become host. */
+  | { kind: "remote"; car: RemoteCar; cpu?: DrivingStyle };
 
 /** One car on the grid, in grid order. */
 export type RaceEntry = {

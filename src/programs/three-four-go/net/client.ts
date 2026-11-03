@@ -7,6 +7,7 @@ import {
   PONG,
   PROTOCOL,
   type RefusedReason,
+  type ResultEntry,
   type ServerMessage,
 } from "./protocol";
 
@@ -19,8 +20,9 @@ export const onlineAvailable = SERVER !== "";
 
 /** Keep-alive ping interval (answered by the server for free). */
 const PING_EVERY = 30_000;
-/** Clock sync: this many round trips right after joining, this far apart. */
+/** Clock sync: this many round trips right after joining (and fewer at each start), this far apart. */
 const SYNC_SAMPLES = 5;
+const START_SYNC_SAMPLES = 3;
 const SYNC_SPACING = 200;
 
 /**
@@ -69,6 +71,12 @@ export type LobbyEvents = {
   welcome(you: string, lobby: LobbyState): void;
   /** The lobby changed (players, cars, names, settings, host). */
   lobby(lobby: LobbyState): void;
+  /** The host started a race. */
+  start(start: Extract<ServerMessage, { type: "start" }>): void;
+  /** Other cars' states during a race. */
+  state(state: Extract<ServerMessage, { type: "state" }>): void;
+  /** The race is over; everyone's back in the lobby. */
+  results(rows: ResultEntry[]): void;
   /** Not let in (or the lobby is gone). The connection is closed. */
   refused(reason: RefusedReason): void;
   /** Connection lost for good (after one try at reconnecting), or never made. */
@@ -102,6 +110,14 @@ export function joinLobby(
     if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message));
   };
 
+  /** A few clock samples; the one with the shortest round trip wins. */
+  const syncClock = (samples: number) => {
+    sync = { offset: sync.offset, roundTrip: Infinity };
+    for (let i = 0; i < samples; i++) {
+      syncTimers.push(setTimeout(() => raw({ type: "time", sent: Date.now() }), i * SYNC_SPACING));
+    }
+  };
+
   const stopTimers = () => {
     clearInterval(pinger);
     syncTimers.splice(0).forEach(clearTimeout);
@@ -130,12 +146,21 @@ export function joinLobby(
         case "welcome":
           welcomed = true;
           events.welcome(message.you, message.lobby);
-          for (let i = 0; i < SYNC_SAMPLES; i++) {
-            syncTimers.push(setTimeout(() => raw({ type: "time", sent: Date.now() }), i * SYNC_SPACING));
-          }
+          syncClock(SYNC_SAMPLES);
           break;
         case "lobby":
           events.lobby(message.lobby);
+          break;
+        case "start":
+          // Clocks drift: check again before GO.
+          syncClock(START_SYNC_SAMPLES);
+          events.start(message);
+          break;
+        case "state":
+          events.state(message);
+          break;
+        case "results":
+          events.results(message.rows);
           break;
         case "refused":
           refused = true;

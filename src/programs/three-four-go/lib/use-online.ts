@@ -3,7 +3,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { createLobby, joinLobby, type LobbyConnection, ServerError, type ServerProblem } from "../net/client";
-import type { ClientMessage, LobbySettings, LobbyState, NewLobby, RefusedReason } from "../net/protocol";
+import {
+  type ClientMessage,
+  isCarState,
+  type LobbySettings,
+  type LobbyState,
+  type NewLobby,
+  type RefusedReason,
+  type ResultEntry,
+} from "../net/protocol";
+import { makeOnlineRace, type OnlineRace } from "./online-race";
 
 export type Online =
   | { kind: "offline" }
@@ -24,6 +33,10 @@ type Options = {
   /** You're in a lobby (also after a reconnect). */
   onJoined: () => void;
   onProblem: (problem: OnlineProblem) => void;
+  /** The host started a race (you're on the grid). */
+  onStart: (race: OnlineRace) => void;
+  /** The race is over: the results, for the race they belong to. */
+  onResults: (rows: ResultEntry[], race: OnlineRace) => void;
 };
 
 /**
@@ -31,20 +44,28 @@ type Options = {
  * lobby looks like now, and changing your car, name or (as host) the
  * settings. Leaves the lobby when the window closes.
  */
-export function useOnline({ name, car, onJoined, onProblem }: Options) {
+export function useOnline({ name, car, onJoined, onProblem, onStart, onResults }: Options) {
   const [online, setOnline] = useState<Online>({ kind: "offline" });
   const connection = useRef<LobbyConnection | null>(null);
   const nameRef = useRef(name);
   const carRef = useRef(car);
   const onJoinedRef = useRef(onJoined);
   const onProblemRef = useRef(onProblem);
+  const onStartRef = useRef(onStart);
+  const onResultsRef = useRef(onResults);
   /** Bumped on every join/leave, so events from an old connection are ignored. */
   const attempt = useRef(0);
+  /** Your player id in the lobby, whether you're its host, and the race being driven. */
+  const you = useRef("");
+  const hosting = useRef(false);
+  const race = useRef<OnlineRace | null>(null);
 
   useEffect(() => {
     onJoinedRef.current = onJoined;
     onProblemRef.current = onProblem;
-  }, [onJoined, onProblem]);
+    onStartRef.current = onStart;
+    onResultsRef.current = onResults;
+  }, [onJoined, onProblem, onStart, onResults]);
 
   const send = useCallback((message: Exclude<ClientMessage, { type: "hello" | "time" }>) => {
     connection.current?.send(message);
@@ -66,6 +87,7 @@ export function useOnline({ name, car, onJoined, onProblem }: Options) {
     attempt.current++;
     connection.current?.close();
     connection.current = null;
+    race.current = null;
     setOnline({ kind: "offline" });
   }, []);
 
@@ -77,19 +99,49 @@ export function useOnline({ name, car, onJoined, onProblem }: Options) {
     const fail = (problem: OnlineProblem) => {
       if (!current()) return;
       connection.current = null;
+      race.current = null;
       setOnline({ kind: "offline" });
       onProblemRef.current(problem);
     };
     setOnline({ kind: "joining", code });
     connection.current = joinLobby(code, { name: nameRef.current, car: carRef.current, password }, {
-      welcome(you, lobby) {
+      welcome(id, lobby) {
         if (!current()) return;
         joined = true;
-        setOnline({ kind: "lobby", you, lobby });
+        you.current = id;
+        hosting.current = lobby.players.some((p) => p.id === id && p.host);
+        race.current = null;
+        setOnline({ kind: "lobby", you: id, lobby });
         onJoinedRef.current();
       },
       lobby(lobby) {
-        if (current()) setOnline((o) => (o.kind === "lobby" ? { ...o, lobby } : o));
+        if (!current()) return;
+        hosting.current = lobby.players.some((p) => p.id === you.current && p.host);
+        setOnline((o) => (o.kind === "lobby" ? { ...o, lobby } : o));
+      },
+      start(start) {
+        if (!current()) return;
+        const next = makeOnlineRace(
+          start,
+          { id: you.current, name: nameRef.current },
+          {
+            serverNow: () => Date.now() + (connection.current?.clockOffset() ?? 0),
+            hosting: () => hosting.current,
+            send: (message) => connection.current?.send(message),
+          },
+        );
+        race.current = next;
+        if (next) onStartRef.current(next);
+      },
+      state({ t, cars }) {
+        const ongoing = race.current;
+        if (!current() || !ongoing || typeof t !== "number" || !Array.isArray(cars)) return;
+        for (const car of cars) {
+          if (isCarState(car) && car[0] !== ongoing.yourSlot) ongoing.remotes.get(car[0])?.push(t, car);
+        }
+      },
+      results(rows) {
+        if (current() && race.current && Array.isArray(rows)) onResultsRef.current(rows, race.current);
       },
       refused(reason) {
         fail({ kind: "refused", reason, code, triedPassword: password !== "" });
@@ -118,6 +170,8 @@ export function useOnline({ name, car, onJoined, onProblem }: Options) {
   );
 
   const changeSettings = useCallback((settings: Partial<LobbySettings>) => send({ type: "settings", settings }), [send]);
+  /** Host: start the race. */
+  const startRace = useCallback(() => send({ type: "start" }), [send]);
 
   // Closing the window leaves the lobby.
   useEffect(
@@ -128,5 +182,5 @@ export function useOnline({ name, car, onJoined, onProblem }: Options) {
     [],
   );
 
-  return { online, join, create, leave, changeSettings };
+  return { online, join, create, leave, changeSettings, startRace };
 }
