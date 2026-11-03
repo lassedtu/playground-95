@@ -9,6 +9,8 @@ const FRAME_ANGLE = (2 * Math.PI) / FRAMES;
 const MIN_AHEAD = 4;
 /** Most a sprite leans (sideways pixels per pixel up), for cars right beside the camera. */
 const MAX_LEAN = 0.8;
+/** How see-through a ghost car (a player who's away) is drawn. */
+const GHOST_ALPHA = 0.45;
 
 /** Decoded sprite sheets, by vehicle name. */
 export type SpriteSheets = Map<string, HTMLImageElement>;
@@ -106,6 +108,7 @@ export function drawCars(
     const size = at.scale / PIXELS_PER_UNIT;
     // Shear around the car's ground point: higher pixels shift sideways by `lean`.
     ctx.setTransform(1, 0, -lean, 1, Math.round(at.x), Math.round(at.y));
+    ctx.globalAlpha = car.ghost ? GHOST_ALPHA : 1;
     ctx.drawImage(
       image,
       frame * vehicle.frameWidth,
@@ -118,6 +121,7 @@ export function drawCars(
       Math.round(vehicle.frameHeight * size),
     );
     ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = 1;
     if (debug) drawCarDebug(ctx, camera, car, p, heading);
   }
 }

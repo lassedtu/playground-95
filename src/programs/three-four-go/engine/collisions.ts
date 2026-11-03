@@ -170,6 +170,11 @@ function nudge(car: Car, contact: Vec2, impulse: Vec2) {
  * Bumps between cars: overlapping hitboxes are pushed apart (the lighter car
  * moves more), and their speeds along the push direction bounce off each
  * other like billiard balls (a bit soft), with some friction sideways.
+ *
+ * A `fixed` car (moved by another player's machine) isn't moved here: the
+ * other car is pushed all the way out of it, and gets its share of the bounce
+ * worked out with both masses as usual. The other machine does the same for
+ * its car, so heavier cars still push harder. Ghosts don't collide.
  */
 export function collideCars(cars: Car[], contacts: Contact[]) {
   for (const car of cars) car.bump = null;
@@ -178,6 +183,7 @@ export function collideCars(cars: Car[], contacts: Contact[]) {
       for (let j = i + 1; j < cars.length; j++) {
         const a = cars[i];
         const b = cars[j];
+        if (a.ghost || b.ghost || (a.fixed && b.fixed)) continue;
         const reach = (Math.hypot(a.length, a.width) + Math.hypot(b.length, b.width)) / 2;
         if (Math.abs(a.p.x - b.p.x) > reach || Math.abs(a.p.y - b.p.y) > reach) continue;
         const hit = overlap(a, b);
@@ -188,9 +194,11 @@ export function collideCars(cars: Car[], contacts: Contact[]) {
         b.bump = n;
         const inverseA = 1 / a.mass;
         const inverseB = 1 / b.mass;
-        const share = depth / (inverseA + inverseB);
-        a.p = { x: a.p.x - n.x * share * inverseA, y: a.p.y - n.y * share * inverseA };
-        b.p = { x: b.p.x + n.x * share * inverseB, y: b.p.y + n.y * share * inverseB };
+        // How much of the overlap each car is pushed back by.
+        const moveA = b.fixed ? 1 : a.fixed ? 0 : inverseA / (inverseA + inverseB);
+        const moveB = 1 - moveA;
+        a.p = { x: a.p.x - n.x * depth * moveA, y: a.p.y - n.y * depth * moveA };
+        b.p = { x: b.p.x + n.x * depth * moveB, y: b.p.y + n.y * depth * moveB };
 
         const relative = { x: b.v.x - a.v.x, y: b.v.y - a.v.y };
         const closing = dot(relative, n);
@@ -202,13 +210,16 @@ export function collideCars(cars: Car[], contacts: Contact[]) {
           const limit = COLLISION.carFriction * push;
           const rub = Math.max(-limit, Math.min(limit, -slide / (inverseA + inverseB)));
           const impulse = { x: n.x * push + t.x * rub, y: n.y * push + t.y * rub };
-          a.v = { x: a.v.x - impulse.x * inverseA, y: a.v.y - impulse.y * inverseA };
-          b.v = { x: b.v.x + impulse.x * inverseB, y: b.v.y + impulse.y * inverseB };
-          nudge(a, contact, { x: -impulse.x, y: -impulse.y });
-          nudge(b, contact, impulse);
-          if (length(impulse) > COLLISION.hardHit) {
-            a.drift = 0;
-            b.drift = 0;
+          const hard = length(impulse) > COLLISION.hardHit;
+          if (!a.fixed) {
+            a.v = { x: a.v.x - impulse.x * inverseA, y: a.v.y - impulse.y * inverseA };
+            nudge(a, contact, { x: -impulse.x, y: -impulse.y });
+            if (hard) a.drift = 0;
+          }
+          if (!b.fixed) {
+            b.v = { x: b.v.x + impulse.x * inverseB, y: b.v.y + impulse.y * inverseB };
+            nudge(b, contact, impulse);
+            if (hard) b.drift = 0;
           }
         }
         if (iteration === 0) contacts.push({ p: contact, normal: n });

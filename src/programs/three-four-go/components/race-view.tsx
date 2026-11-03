@@ -6,10 +6,8 @@ import { useElementSize } from "@/lib/use-element-size";
 import { useElementVisible } from "@/lib/use-element-visible";
 
 import { THEMES } from "../data/ground-style";
-import { CPU_DRIVERS } from "../data/personalities";
 import { SKIES } from "../data/skies";
 import { TRACKS } from "../data/tracks";
-import { type Vehicle, VEHICLES } from "../data/vehicles";
 import { type LoadedSky, loadSky, makeOutsideTile } from "../engine/backdrop";
 import { type Camera, cameraBehind, followCar, lerpCamera, VIEW_HEIGHT, VIEW_WIDTH } from "../engine/camera";
 import { type Car, makeCar, NO_INPUT } from "../engine/car";
@@ -23,9 +21,11 @@ import { drawGround, drawSky, type Fog } from "../engine/mode7";
 import { stepCar, SURFACES } from "../engine/physics";
 import { bestLap, makeRace, type Race, standings, started, updateRace } from "../engine/race";
 import { seededRandom } from "../engine/random";
+import type { RemoteSample } from "../engine/remote";
 import { type CarPose, drawCars, loadSpriteSheets, type SpriteSheets } from "../engine/sprites";
 import { loadTrack, surfaceAt, type Track } from "../engine/track";
 import { lerp, wrapAngle } from "../engine/vector";
+import { type RaceEntry, soloLineup, soloVehicles } from "../lib/lineup";
 import type { RaceSettings } from "../lib/settings";
 import type { ResultRow } from "./results-dialog";
 import { TouchControls } from "./touch-controls";
@@ -105,17 +105,13 @@ function trackFor(id: string) {
   return loaded;
 }
 
-/** Your car, and one different car per CPU (theirs are fixed, yours can be any). */
-function carsFor(settings: RaceSettings) {
-  const yours = VEHICLES.find((v) => v.name === settings.car) ?? VEHICLES[0];
-  const others = VEHICLES.filter((v) => v !== yours);
-  return { yours, theirs: CPU_DRIVERS.slice(0, settings.cpus).map((_, i) => others[i % others.length]) };
-}
-
-/** Starts a race on a loaded track; returns a function that stops it all. */
+/**
+ * Starts a race on a loaded track; returns a function that stops it all.
+ * `lineup` gives the grid (called again on every restart).
+ */
 function startRacing(
-  canvas: HTMLCanvasElement,
   ctx: CanvasRenderingContext2D,
+  lineup: () => RaceEntry[],
   settings: RaceSettings,
   track: Track,
   sky: LoadedSky,
@@ -127,18 +123,20 @@ function startRacing(
   const fog: Fog = { color: sky.fog, start: FOG_START, end: FOG_END };
   const image = ctx.createImageData(VIEW_WIDTH, VIEW_HEIGHT);
   const pixels = new Uint32Array(image.data.buffer);
-  const { yours, theirs } = carsFor(settings);
+  const random = seededRandom(Date.now() >>> 0);
 
-  // The CPUs on the grid in a different order every race, you at the back
-  // (like the old kart games).
-  const PLAYER = Math.min(settings.cpus, track.start.length - 1);
-  const shuffle = seededRandom(Date.now() >>> 0);
+  let entries: RaceEntry[] = [];
+  /** Index of your car. */
+  let yourIndex = 0;
   let cars: Car[] = [];
-  let drivers: CpuDriver[] = [];
-  let entries: { name: string; label: string; vehicle: Vehicle }[] = [];
+  /** A driver per car except remote ones; yours takes over once you've finished. */
+  let drivers: (CpuDriver | null)[] = [];
+  /** Remote cars whose position isn't known yet aren't drawn. */
+  let known: boolean[] = [];
   let race: Race = makeRace(track, []);
-  let previousCamera: Camera = cameraBehind(makeCar(yours, 0, 0, 0));
-  let camera: Camera = previousCamera;
+  // Set by restart(), straight below.
+  let previousCamera!: Camera;
+  let camera!: Camera;
   let paused = false;
   let reported = false;
   let place = 1;
@@ -146,35 +144,60 @@ function startRacing(
   let contactsAt = 0;
 
   const restart = () => {
-    const grid = CPU_DRIVERS.slice(0, PLAYER)
-      .map((entry, i) => ({ entry, vehicle: theirs[i], key: shuffle() }))
-      .sort((a, b) => a.key - b.key);
-    entries = [
-      ...grid.map(({ entry, vehicle }) => ({ name: entry.name, label: entry.personality.label, vehicle })),
-      { name: "You", label: "", vehicle: yours },
-    ];
-    cars = track.start.slice(0, PLAYER + 1).map((slot, i) => makeCar(entries[i].vehicle, slot.x, slot.y, slot.angle));
-    // Every car gets a driver; yours takes over once you've finished.
-    const seed = Math.floor(shuffle() * 1e9);
-    drivers = cars.map((_, i) => makeDriver(i === PLAYER ? DEFAULT_STYLE : grid[i].entry.personality.style, seed + i));
+    entries = lineup().slice(0, track.start.length);
+    yourIndex = Math.max(0, entries.findIndex((e) => e.control.kind === "you"));
+    cars = entries.map((entry, i) => {
+      const slot = track.start[i];
+      const car = makeCar(entry.vehicle, slot.x, slot.y, slot.angle);
+      car.fixed = entry.control.kind === "remote";
+      return car;
+    });
+    const seed = Math.floor(random() * 1e9);
+    drivers = entries.map(({ control }, i) =>
+      control.kind === "remote" ? null : makeDriver(control.kind === "cpu" ? control.style : DEFAULT_STYLE, seed + i),
+    );
+    known = entries.map((e) => e.control.kind !== "remote");
     race = makeRace(track, cars, settings.laps);
-    previousCamera = camera = cameraBehind(cars[PLAYER]);
+    entries.forEach((e, i) => (race.racers[i].external = e.control.kind === "remote"));
+    previousCamera = camera = cameraBehind(cars[yourIndex]);
     paused = false;
     reported = false;
   };
   restart();
 
+  /** Puts a remote car where its machine says it is (for this tick). */
+  const follow = (i: number, sample: RemoteSample | null) => {
+    const car = cars[i];
+    const racer = race.racers[i];
+    known[i] = sample !== null;
+    car.previous = { p: { ...car.p }, heading: car.heading };
+    if (!sample) {
+      car.ghost = true;
+      return;
+    }
+    car.p = { ...sample.p };
+    car.heading = sample.heading;
+    car.v = { ...sample.v };
+    car.drift = sample.drift;
+    car.ghost = sample.ghost;
+    racer.lap = sample.lap;
+    racer.next = sample.next;
+    racer.last = sample.last;
+    racer.lapTimes = sample.lapTimes;
+    racer.finished = sample.finished;
+  };
+
   const finishedRace = (): FinishedRace => {
-    const you = race.racers[PLAYER];
+    const you = race.racers[yourIndex];
     return {
       settings,
       trackName: track.name,
       time: you.finished ?? 0,
       bestLap: bestLap(you),
       rows: standings(race).map((i) => ({
-        name: i === PLAYER ? refs.playerName.current : entries[i].name,
+        name: i === yourIndex ? refs.playerName.current : entries[i].name,
         car: entries[i].vehicle.label,
-        you: i === PLAYER,
+        you: i === yourIndex,
         time: race.racers[i].finished,
         bestLap: bestLap(race.racers[i]),
       })),
@@ -183,25 +206,30 @@ function startRacing(
 
   const update = (dt: number) => {
     if (paused || refs.hold.current) return;
-    const player = cars[PLAYER];
-    const you = race.racers[PLAYER];
+    const player = cars[yourIndex];
+    const you = race.racers[yourIndex];
     const before = { ...player.p };
     cars.forEach((car, i) => {
+      const control = entries[i].control;
+      if (control.kind === "remote") {
+        follow(i, control.car.sample(race.time + dt));
+        return;
+      }
       const input =
-        i === PLAYER && you.finished === null
+        i === yourIndex && you.finished === null
           ? started(race)
             ? readPlayerInput(keyboard)
             : NO_INPUT
-          : drive(race, race.racers[i], i, drivers[i], dt);
+          : drive(race, race.racers[i], i, drivers[i]!, dt);
       const surface = SURFACES[surfaceAt(track, car.p.x, car.p.y)];
       // CPUs well behind you get a little extra top speed.
-      const boost = i === PLAYER ? 1 : catchUp(race, race.racers[i], you);
+      const boost = i === yourIndex ? 1 : catchUp(race, race.racers[i], you);
       stepCar(car, input, boost === 1 ? surface : { ...surface, max: surface.max * boost }, dt);
     });
     // Bumps: cars against each other first, then walls (walls always win).
     const contacts: Contact[] = [];
     collideCars(cars, contacts);
-    for (const car of cars) collideWithWalls(track, car, contacts);
+    for (const car of cars) if (!car.fixed) collideWithWalls(track, car, contacts);
     if (contacts.length) {
       recentContacts = contacts;
       contactsAt = race.time;
@@ -211,7 +239,7 @@ function startRacing(
     // Laps and the clock follow the cars' movement. A respawn moves the car
     // without it driving there; the camera jumps with it.
     updateRace(race, dt);
-    place = standings(race).indexOf(PLAYER) + 1;
+    place = standings(race).indexOf(yourIndex) + 1;
     if (Math.hypot(player.p.x - before.x, player.p.y - before.y) > TELEPORT) camera = cameraBehind(player);
     previousCamera = camera;
     camera = followCar(camera, player, dt);
@@ -236,15 +264,21 @@ function startRacing(
     drawSky(pixels, sky.layers, view, sky.fog);
     drawGround(pixels, options.logic ? track.logicImage : track.ground, outside, view, fog);
     ctx.putImageData(image, 0, 0);
-    drawCars(ctx, view, cars.map((c) => pose(c, t)), sheets, options.hitboxes);
+    const shown = cars.filter((_, i) => known[i]);
+    drawCars(ctx, view, shown.map((c) => pose(c, t)), sheets, options.hitboxes);
     if (options.hitboxes) {
       drawContacts(ctx, view, recentContacts);
       drivers.forEach((d, i) => {
-        if (d.seen && (i !== PLAYER || race.racers[PLAYER].finished !== null)) drawCpuDebug(ctx, view, d.seen);
+        if (d?.seen && (i !== yourIndex || race.racers[yourIndex].finished !== null)) drawCpuDebug(ctx, view, d.seen);
       });
-      cars.forEach((c, i) => i !== PLAYER && drawNameTag(ctx, view, c.p, `${entries[i].name} (${entries[i].label})`));
     }
-    drawHud(ctx, race, race.racers[PLAYER], place, paused);
+    cars.forEach((c, i) => {
+      if (i === yourIndex || !known[i]) return;
+      const { name, label, tag } = entries[i];
+      const text = options.hitboxes ? (label ? `${name} (${label})` : name) : tag;
+      if (text) drawNameTag(ctx, view, pose(c, t).p, text);
+    });
+    drawHud(ctx, race, race.racers[yourIndex], place, paused);
   };
 
   const loop = createLoop(update, render);
@@ -261,7 +295,7 @@ function startRacing(
   if (refs.visible.current) loop.start();
 
   const report = setInterval(() => {
-    const racer = race.racers[PLAYER];
+    const racer = race.racers[yourIndex];
     refs.onStats.current({
       track: track.name,
       lap: Math.min(Math.max(1, racer.lap), race.laps),
@@ -354,10 +388,13 @@ export function RaceView({ settings, options, hold, playerName, onStats, onFinis
     let stop = () => {};
     let cancelled = false;
     drawMessage(ctx, "3-4-Go!", "Loading track…");
-    const { yours, theirs } = carsFor(settings);
+    const { yours, theirs } = soloVehicles(settings);
+    const random = seededRandom(Date.now() >>> 0);
     Promise.all([trackFor(settings.track), loadSpriteSheets([yours, ...theirs])]).then(
       ([{ track, sky }, sheets]) => {
-        if (!cancelled) stop = startRacing(canvas, ctx, settings, track, sky, sheets, keyboard, refs);
+        if (cancelled) return;
+        const lineup = () => soloLineup(settings, track.start.length, random);
+        stop = startRacing(ctx, lineup, settings, track, sky, sheets, keyboard, refs);
       },
       () => !cancelled && drawMessage(ctx, "3-4-Go!", "Couldn't load the track."),
     );

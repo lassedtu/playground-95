@@ -35,6 +35,11 @@ export type Racer = {
   outFor: number;
   /** A short message for this car and when it was set. */
   note: { text: string; at: number } | null;
+  /**
+   * Laps, gates and finish are reported by someone else (another player's
+   * machine) instead of worked out here, and it's never respawned here.
+   */
+  external: boolean;
 };
 
 export type Race = {
@@ -61,6 +66,7 @@ export function makeRace(track: Track, cars: Car[], laps = track.laps): Race {
       wrongWayFor: 0,
       outFor: 0,
       note: null,
+      external: false,
     })),
   };
 }
@@ -143,6 +149,7 @@ function roadDirection(race: Race, racer: Racer): Vec2 {
 export function updateRace(race: Race, dt: number) {
   race.time += dt;
   race.racers.forEach((racer, index) => {
+    if (racer.external) return;
     const { car } = racer;
     for (const gate of crossings(race.track, car.previous.p, car.p)) cross(race, racer, gate);
 
