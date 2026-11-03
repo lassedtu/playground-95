@@ -21,9 +21,11 @@ import { formatTime, ordinal } from "./engine/race";
 import { loadProfile, saveProfile } from "./lib/profile";
 import { recordRace } from "./lib/records";
 import { loadSettings, type RaceSettings, saveSettings } from "./lib/settings";
+import { type OnlineRace, onlineResultRows } from "./lib/online-race";
 import { type OnlineProblem, useOnline } from "./lib/use-online";
 import { onlineAvailable } from "./net/client";
-import { MAX_CARS, MAX_CPUS } from "./net/protocol";
+import { MAX_CARS, MAX_CPUS, type ResultEntry } from "./net/protocol";
+import { trackName } from "./components/race-pickers";
 
 /** Must match the id in programs/registry.tsx (used by Race -> Exit). */
 const PROGRAM_ID = "three-four-go";
@@ -55,6 +57,8 @@ export function ThreeFourGo() {
   const [message, setMessage] = useState("");
   const [passwordFor, setPasswordFor] = useState<{ code: string; wrong: boolean } | null>(null);
   const [settings, setSettings] = useState<RaceSettings | null>(null);
+  /** The online race being driven (with `settings` for its track and laps), or null. */
+  const [onlineRace, setOnlineRace] = useState<OnlineRace | null>(null);
   const [lastSettings, setLastSettings] = useState<RaceSettings>(loadSettings);
   const [profile, setProfile] = useState(loadProfile);
   const [results, setResults] = useState<RaceResults | null>(null);
@@ -69,6 +73,21 @@ export function ThreeFourGo() {
   useEffect(() => {
     panelRef.current = panel;
   }, [panel]);
+  /** Records you set in the current online race (saved when you cross the line, shown with the results). */
+  const onlineRecords = useRef({ newRace: false, newLap: false });
+
+  const onlineRaceRef = useRef(onlineRace);
+  useEffect(() => {
+    onlineRaceRef.current = onlineRace;
+  }, [onlineRace]);
+  /** Ends the online race on this screen (if there is one); a single-player race carries on. */
+  const stopOnlineRace = useCallback(() => {
+    if (!onlineRaceRef.current) return;
+    onlineRaceRef.current = null;
+    setOnlineRace(null);
+    setSettings(null);
+    setStats(null);
+  }, []);
 
   const onJoined = useCallback(() => {
     // Into the lobby: any single-player race stops.
@@ -78,6 +97,7 @@ export function ThreeFourGo() {
     setPanel("lobby");
   }, []);
   const onProblem = useCallback((problem: OnlineProblem) => {
+    stopOnlineRace();
     if (problem.kind === "refused" && problem.reason === "password") {
       setPasswordFor({ code: problem.code, wrong: problem.triedPassword });
       setReturnTo("online");
@@ -87,12 +107,34 @@ export function ThreeFourGo() {
     setMessage(problemText(problem));
     setReturnTo(panelRef.current === "create-lobby" ? "create-lobby" : "online");
     setPanel("message");
+  }, [stopOnlineRace]);
+  const onStart = useCallback((race: OnlineRace) => {
+    onlineRecords.current = { newRace: false, newLap: false };
+    setOnlineRace(race);
+    // A new object, so the view starts the race even with the same track and laps.
+    setSettings({ track: race.track, laps: race.laps, car: race.entries[race.yourSlot].vehicle.name, cpus: 0 });
+    setStats(null);
+    setResults(null);
+    setReturnTo(null);
+    setPanel("none");
   }, []);
-  const { online, join, create, leave, changeSettings } = useOnline({
+  const onResults = useCallback((rows: ResultEntry[], race: OnlineRace) => {
+    setResults({
+      trackName: trackName(race.track),
+      laps: race.laps,
+      rows: onlineResultRows(race, rows),
+      ...onlineRecords.current,
+    });
+    setReturnTo(null);
+    setPanel("results");
+  }, []);
+  const { online, join, create, leave, changeSettings, startRace } = useOnline({
     name: profile.name,
     car: lastSettings.car,
     onJoined,
     onProblem,
+    onStart,
+    onResults,
   });
   const lobby = online.kind === "lobby" ? online.lobby : null;
   const joining = online.kind === "joining";
@@ -115,8 +157,13 @@ export function ThreeFourGo() {
   };
   const leaveLobby = () => {
     leave();
+    stopOnlineRace();
     setReturnTo(null);
     setPanel("online");
+  };
+  const backToLobby = () => {
+    stopOnlineRace();
+    show("lobby");
   };
   const chooseCar = (car: string) => {
     const next = { ...lastSettings, car };
@@ -134,6 +181,11 @@ export function ThreeFourGo() {
 
   const onFinish = useCallback((race: FinishedRace) => {
     const { newRace, newLap } = recordRace(race.settings.track, race.settings.laps, race.time, race.bestLap);
+    if (race.online) {
+      // The results come from the server once everyone's in.
+      onlineRecords.current = { newRace, newLap };
+      return;
+    }
     setResults({ trackName: race.trackName, laps: race.settings.laps, rows: race.rows, newRace, newLap });
     setPanel("results");
   }, []);
@@ -156,11 +208,15 @@ export function ThreeFourGo() {
       label: "Race",
       entries: [
         { label: "New Race…", disabled: !!lobby || joining, onSelect: () => show("new-race") },
-        { label: "Play Online…", disabled: !onlineAvailable, onSelect: () => show(lobby ? "lobby" : joining ? panel : "online") },
+        {
+          label: "Play Online…",
+          disabled: !onlineAvailable || !!onlineRace,
+          onSelect: () => show(lobby ? "lobby" : joining ? panel : "online"),
+        },
         { label: "Your Name…", onSelect: () => openOver("name") },
         "divider",
-        { label: "Restart", shortcut: "F2", disabled: !settings, onSelect: restart },
-        { label: "Pause", shortcut: "P", disabled: !settings, checked: stats?.paused ?? false, onSelect: () => controls.current?.togglePause() },
+        { label: "Restart", shortcut: "F2", disabled: !settings || !!onlineRace, onSelect: restart },
+        { label: "Pause", shortcut: "P", disabled: !settings || !!onlineRace, checked: stats?.paused ?? false, onSelect: () => controls.current?.togglePause() },
         "divider",
         ...(lobby ? [{ label: "Leave Lobby", onSelect: leaveLobby }] : []),
         { label: "Exit", onSelect: () => closeWindow(PROGRAM_ID) },
@@ -186,7 +242,7 @@ export function ThreeFourGo() {
     },
   ];
 
-  const status = lobby
+  const status = lobby && !onlineRace
     ? `Lobby ${lobby.code}: ${lobby.players.length}/${lobby.settings.maxPlayers} players`
     : joining
       ? "Joining…"
@@ -197,7 +253,9 @@ export function ThreeFourGo() {
         : !stats
           ? "Loading…"
           : stats.finished
-            ? `Finished! Press F2 to race again.`
+            ? onlineRace
+              ? "Finished! Waiting for the others…"
+              : "Finished! Press F2 to race again."
             : stats.paused
               ? "Paused. Press P to carry on."
               : stats.track;
@@ -292,6 +350,7 @@ export function ThreeFourGo() {
           onCar={chooseCar}
           onChangeName={() => openOver("name")}
           onSettings={() => openOver("lobby-settings")}
+          onStart={startRace}
           onLeave={leaveLobby}
         />
       ),
@@ -340,9 +399,15 @@ export function ThreeFourGo() {
     results: {
       title: "Results",
       width: "w-[26rem]",
-      escape: () => setPanel("none"),
+      escape: onlineRace ? undefined : () => setPanel("none"),
       body: results && (
-        <ResultsDialog results={results} onAgain={restart} onNewRace={() => setPanel("new-race")} onClose={() => setPanel("none")} />
+        <ResultsDialog
+          results={results}
+          onAgain={onlineRace ? startRace : restart}
+          onNewRace={() => setPanel("new-race")}
+          onClose={() => setPanel("none")}
+          online={onlineRace ? { host: online.kind === "lobby" && online.lobby.players.some((p) => p.id === online.you && p.host), onBackToLobby: backToLobby } : undefined}
+        />
       ),
     },
     help: {
@@ -421,7 +486,7 @@ export function ThreeFourGo() {
       onKeyDown={(event) => {
         // Keys typed in our own dialogs aren't game keys. (Not [role=dialog]:
         // the whole program window is one.)
-        if ((event.target as HTMLElement).closest("[role=menubar], [data-panel]") || !settings) return;
+        if ((event.target as HTMLElement).closest("[role=menubar], [data-panel]") || !settings || onlineRace) return;
         if (event.key === "F2") {
           event.preventDefault();
           restart();
@@ -436,8 +501,9 @@ export function ThreeFourGo() {
         <div className="min-h-0 flex-1 border-2 border-t-[#808080] border-r-white border-b-white border-l-[#808080] bg-black">
           <RaceView
             settings={settings}
+            online={onlineRace}
             options={DEV ? options : { hitboxes: false, logic: false }}
-            hold={panel !== "none" && panel !== "results"}
+            hold={!onlineRace && panel !== "none" && panel !== "results"}
             playerName={profile.name}
             onStats={onStats}
             onFinish={onFinish}

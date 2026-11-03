@@ -4,7 +4,15 @@ import { Button } from "@react95/core";
 
 import { formatTime, ordinal } from "../engine/race";
 
-export type ResultRow = { name: string; car: string; you: boolean; time: number | null; bestLap: number | null };
+export type ResultRow = {
+  name: string;
+  car: string;
+  you: boolean;
+  time: number | null;
+  bestLap: number | null;
+  /** Shown instead of a time when there's none, e.g. "DNF" (default "Still racing"). */
+  note?: string;
+};
 
 export type RaceResults = {
   trackName: string;
@@ -21,16 +29,19 @@ type ResultsDialogProps = {
   onAgain: () => void;
   onNewRace: () => void;
   onClose: () => void;
+  /** An online race: back to the lobby, and (for the host) Race Again instead of the single-player buttons. */
+  online?: { host: boolean; onBackToLobby: () => void };
 };
 
 /** Finishing order like a Win95 list view: place, driver, car, time, best lap. */
-export function ResultsDialog({ results, onAgain, onNewRace, onClose }: ResultsDialogProps) {
+export function ResultsDialog({ results, onAgain, onNewRace, onClose, online }: ResultsDialogProps) {
   const place = results.rows.findIndex((row) => row.you) + 1;
   const solo = results.rows.length === 1;
+  const finished = results.rows.find((row) => row.you)?.time !== null;
   return (
     <div className="flex flex-col gap-2">
       <p className="m-0 font-bold">
-        {solo ? "Time trial" : place === 1 ? "You won!" : `You finished ${ordinal(place)}.`}{" "}
+        {solo ? "Time trial" : !finished ? "You didn't finish." : place === 1 ? "You won!" : `You finished ${ordinal(place)}.`}{" "}
         <span className="font-normal">
           {results.trackName}, {results.laps} lap{results.laps > 1 ? "s" : ""}
         </span>
@@ -65,24 +76,42 @@ export function ResultsDialog({ results, onAgain, onNewRace, onClose }: ResultsD
                   {row.you && " (you)"}
                 </td>
                 <td className="px-1 py-0.5">{row.car}</td>
-                <td className="px-1 py-0.5 tabular-nums">{row.time === null ? "Still racing" : formatTime(row.time)}</td>
+                <td className="px-1 py-0.5 tabular-nums">{row.time === null ? (row.note ?? "Still racing") : formatTime(row.time)}</td>
                 <td className="px-1 py-0.5 tabular-nums">{row.bestLap === null ? "–" : formatTime(row.bestLap)}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <div className="flex justify-end gap-2">
-        <Button className="min-w-20 font-bold" onClick={onAgain}>
-          Race Again
-        </Button>
-        <Button className="min-w-20" onClick={onNewRace}>
-          New Race…
-        </Button>
-        <Button className="min-w-20" onClick={onClose}>
-          Close
-        </Button>
-      </div>
+      {online ? (
+        <div className="flex items-center justify-end gap-2">
+          {!online.host && (
+            <span className="mr-auto text-xs" role="status">
+              The host can start another race.
+            </span>
+          )}
+          {online.host && (
+            <Button className="min-w-20 font-bold" onClick={onAgain}>
+              Race Again
+            </Button>
+          )}
+          <Button className={`min-w-20 ${online.host ? "" : "font-bold"}`} onClick={online.onBackToLobby}>
+            Back to Lobby
+          </Button>
+        </div>
+      ) : (
+        <div className="flex justify-end gap-2">
+          <Button className="min-w-20 font-bold" onClick={onAgain}>
+            Race Again
+          </Button>
+          <Button className="min-w-20" onClick={onNewRace}>
+            New Race…
+          </Button>
+          <Button className="min-w-20" onClick={onClose}>
+            Close
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

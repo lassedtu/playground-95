@@ -231,6 +231,72 @@ check((await api("/nope")).status === 404, "unknown route: 404");
 const blocked = await fetch(`${SERVER}/lobbies`, { headers: { Origin: "https://evil.example" } });
 check(blocked.status === 403, "other websites refused");
 
+// A race: start, states passed on, finishes, results
+console.log("Racing:");
+const raceCode = (
+  await api("/lobbies", { method: "POST", body: JSON.stringify({ name: "Race check", track: "westico", laps: 1, maxPlayers: 3, cpus: 2 }) })
+).body.code;
+const racer1 = player(raceCode, { name: "One" });
+const one = await racer1.next("welcome");
+racer1.send({ type: "start" });
+check((await racer1.next("start", 800)) === null, "a race needs 2 players");
+const racer2 = player(raceCode, { name: "Two", car: "taxi" });
+const two = await racer2.next("welcome");
+await racer1.until("lobby", (m) => m.lobby.players.length === 2);
+racer2.send({ type: "start" });
+check((await racer1.next("start", 800)) === null, "only the host starts");
+racer1.send({ type: "start" });
+const start1 = await racer1.next("start");
+const start2 = await racer2.next("start");
+check(start1 !== null && start2 !== null, "start sent to both");
+const grid = start1?.grid ?? [];
+check(grid.length === 4 && grid.filter((g) => g.kind === "cpu").length === 2, "grid: 2 players + the 2 CPUs asked for");
+check(grid.every((g, i) => g.slot === i), "grid slots in order");
+check(Math.abs((start1?.goAt ?? 0) - Date.now() - 4000) < 2500, "GO about 4 s away");
+check((await racer2.until("lobby", (m) => m.lobby.phase === "racing")) !== null, "lobby says racing");
+const late2 = player(raceCode, { name: "Late" });
+check((await late2.next("refused"))?.reason === "racing", "can't join a race in progress");
+
+const slotOf = (id) => grid.find((g) => g.kind === "player" && g.id === id).slot;
+const cpuSlot = grid.find((g) => g.kind === "cpu").slot;
+const car = (slot, lap = 0) => [slot, 100.5, 200.5, 10, 0, 1.5, 0, 0, lap, 1, 0, -1];
+racer2.send({ type: "state", t: -3, cars: [car(slotOf(two.you))] });
+check((await racer1.next("state"))?.cars[0][0] === slotOf(two.you), "state passed on to the other player");
+racer2.send({ type: "state", t: -3, cars: [car(slotOf(one.you))] });
+racer2.send({ type: "state", t: -3, cars: [car(cpuSlot)] });
+check((await racer1.next("state", 800)) === null, "can't send someone else's car (or a CPU, unless host)");
+racer1.send({ type: "state", t: -3, cars: [car(slotOf(one.you)), car(cpuSlot)] });
+check((await racer2.next("state"))?.cars.length === 2, "host sends its car and the CPU");
+racer2.send({ type: "finish", slot: slotOf(two.you), time: 30, bestLap: 30 });
+
+await sleep(Math.max(0, (start1?.goAt ?? 0) - Date.now()) + 1500);
+racer2.send({ type: "finish", slot: slotOf(two.you), time: 1.2, bestLap: 1.2 });
+racer1.send({ type: "finish", slot: cpuSlot, time: 1.0, bestLap: 1.0 });
+check((await racer1.next("results", 800)) === null, "no results while a player is still racing");
+racer1.send({ type: "finish", slot: slotOf(one.you), time: 1.3, bestLap: null });
+const results = await racer2.next("results");
+check((await racer1.next("results")) !== null && results !== null, "results to both once every player finished");
+check(
+  results?.rows.slice(0, 3).map((r) => r.slot).join() === [cpuSlot, slotOf(two.you), slotOf(one.you)].join() &&
+    results.rows[3].time === null,
+  "results in finishing order, the CPU that didn't finish last (a too-early finish was ignored)",
+);
+check((await racer1.until("lobby", (m) => m.lobby.phase === "lobby")) !== null, "back to the lobby after the results");
+
+// Someone leaves mid-race: the race ends when the rest have finished, and they're "left"
+racer1.clear();
+racer1.send({ type: "start" });
+const again = await racer1.next("start");
+await racer2.next("start");
+await sleep(Math.max(0, (again?.goAt ?? 0) - Date.now()) + 1200);
+racer2.close();
+await racer1.until("lobby", (m) => m.lobby.players.length === 1);
+racer1.send({ type: "finish", slot: again.grid.find((g) => g.kind === "player" && g.id === one.you).slot, time: 1, bestLap: 1 });
+const afterLeave = await racer1.next("results");
+const leftRow = afterLeave?.rows.find((r) => r.slot === again.grid.find((g) => g.kind === "player" && g.id === two.you).slot);
+check(leftRow?.left === true && leftRow.time === null, "a player who left shows as left");
+racer1.close();
+
 await sleep(200);
 console.log(failures ? `\n${failures} check(s) failed.` : "\nAll checks passed.");
 stopServer();
