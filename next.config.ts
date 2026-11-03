@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // `pnpm dev` from other devices on the home network (e.g. a phone at
+  // http://192.168.86.75:3000). Hostnames only; each * is one part.
+  allowedDevOrigins: ["192.168.*.*"],
   cacheComponents: true,
   partialPrefetching: true,
   experimental: {

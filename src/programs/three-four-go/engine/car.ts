@@ -27,6 +27,13 @@ export type Car = {
   bump: Vec2 | null;
   /** Position and heading at the previous tick, for smooth drawing between ticks. */
   previous: { p: Vec2; heading: number };
+  /**
+   * Moved by someone else (another player's car online): solid, but bumps
+   * never move it here; its own machine bounces it.
+   */
+  fixed: boolean;
+  /** Doesn't collide with anything and is drawn see-through (a player who's away). */
+  ghost: boolean;
 };
 
 /** What a driver (player or CPU) does this tick. */
@@ -56,6 +63,8 @@ export function makeCar(vehicle: Vehicle, x: number, y: number, heading: number)
     drift: 0,
     bump: null,
     previous: { p: { x, y }, heading },
+    fixed: false,
+    ghost: false,
   };
 }
 
