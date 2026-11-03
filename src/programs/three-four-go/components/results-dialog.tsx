@@ -3,6 +3,7 @@
 import { Button } from "@react95/core";
 
 import { formatTime, ordinal } from "../engine/race";
+import type { RecordPlaces } from "../net/protocol";
 
 export type ResultRow = {
   name: string;
@@ -19,10 +20,26 @@ export type RaceResults = {
   laps: number;
   /** In finishing order. */
   rows: ResultRow[];
-  /** Records you set this race. */
+  /** Records you set this race (on this computer). */
   newRace: boolean;
   newLap: boolean;
+  /** Tells this race's results apart (the global records answer comes later). */
+  id: number;
 };
+
+/** The global records' answer for your race: still sending, where it got, or couldn't send. */
+export type GlobalPlaces = RecordPlaces | "pending" | "failed";
+
+function GlobalMessage({ places, laps }: { places: GlobalPlaces; laps: number }) {
+  if (places === "pending") return <p className="m-0 text-xs">Sending your time to the global records…</p>;
+  if (places === "failed") return <p className="m-0 text-xs">Couldn&apos;t reach the global records this time.</p>;
+  const made = [
+    places.lap !== null && `#${places.lap} fastest lap`,
+    places.race !== null && `#${places.race} fastest ${laps}-lap race`,
+  ].filter(Boolean);
+  if (!made.length) return <p className="m-0 text-xs">Not in the global top 10 this time.</p>;
+  return <p className="m-0 font-bold text-[#000080]">Global records: {made.join(" and ")}!</p>;
+}
 
 type ResultsDialogProps = {
   results: RaceResults;
@@ -31,10 +48,12 @@ type ResultsDialogProps = {
   onClose: () => void;
   /** An online race: back to the lobby, and (for the host) Race Again instead of the single-player buttons. */
   online?: { host: boolean; onBackToLobby: () => void };
+  /** Where your race got on the global records (null: not sent, e.g. you didn't finish). */
+  global: GlobalPlaces | null;
 };
 
 /** Finishing order like a Win95 list view: place, driver, car, time, best lap. */
-export function ResultsDialog({ results, onAgain, onNewRace, onClose, online }: ResultsDialogProps) {
+export function ResultsDialog({ results, onAgain, onNewRace, onClose, online, global }: ResultsDialogProps) {
   const place = results.rows.findIndex((row) => row.you) + 1;
   const solo = results.rows.length === 1;
   const finished = results.rows.find((row) => row.you)?.time !== null;
@@ -52,6 +71,7 @@ export function ResultsDialog({ results, onAgain, onNewRace, onClose, online }: 
           {[results.newRace && "race time", results.newLap && "lap"].filter(Boolean).join(" and ")}!
         </p>
       )}
+      {global && <GlobalMessage places={global} laps={results.laps} />}
       <div className="max-h-56 overflow-auto border-2 border-t-[#808080] border-r-white border-b-white border-l-[#808080] bg-white">
         <table className="w-full border-collapse text-left text-xs">
           <thead>

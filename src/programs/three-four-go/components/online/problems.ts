@@ -11,6 +11,8 @@ export function problemText(problem: OnlineProblem) {
           return "The race server is busy today. Try again tomorrow.";
         case "not-allowed":
           return `The race server doesn't accept players from ${location.host}. (Add this address to ALLOWED_ORIGINS in the server's wrangler.jsonc and deploy it again.)`;
+        case "outdated":
+          return "The race server is older than this game. (Deploy workers/three-four-go again.)";
         case "bad-reply":
           return "The race server sent something odd. Try again in a moment.";
         case "unreachable":

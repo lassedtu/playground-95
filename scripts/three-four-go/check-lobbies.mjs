@@ -297,6 +297,35 @@ const leftRow = afterLeave?.rows.find((r) => r.slot === again.grid.find((g) => g
 check(leftRow?.left === true && leftRow.time === null, "a player who left shows as left");
 racer1.close();
 
+// Global records (local server only: on a real one this would put made-up times on the boards)
+if (!process.argv[2]) {
+  console.log("Records:");
+  const tag = Math.random().toString(36).slice(2, 6);
+  const name = `Check ${tag}`;
+  const submit = (record) => api("/records", { method: "POST", body: JSON.stringify({ track: "hill-climb", laps: 3, car: "rally", name, ...record }) });
+  const boardsNow = async () => (await api("/records/hill-climb")).body;
+
+  const empty = await api("/records/hill-climb");
+  check(empty.status === 200 && Array.isArray(empty.body.laps) && Array.isArray(empty.body.races["3"]), "boards for a track");
+  check((await api("/records/nope")).status === 404, "no boards for a track that doesn't exist");
+  check((await submit({ lapTimes: [1, 1, 1] })).status === 400, "impossible lap times refused");
+  check((await submit({ lapTimes: [40, 40] })).status === 400, "wrong number of lap times refused");
+  check((await submit({ track: "nope", lapTimes: [40, 40, 40] })).status === 400, "unknown track refused");
+
+  const first = await submit({ lapTimes: [400, 400, 400] });
+  check(first.status === 200 && "lap" in first.body && "race" in first.body, `slow race accepted (places ${JSON.stringify(first.body)})`);
+  const better = await submit({ lapTimes: [31.5, 30.25, 30.75] });
+  check(better.status === 200 && better.body.lap !== null && better.body.race !== null, `faster race placed (${JSON.stringify(better.body)})`);
+  const worse = await submit({ lapTimes: [35, 35, 35] });
+  check(worse.body.lap === null && worse.body.race === null, "slower than your own time: not placed again");
+  const boards = await boardsNow();
+  const mine = boards.races["3"].filter((r) => r.name === name);
+  check(mine.length === 1 && Math.abs(mine[0].time - 92.5) < 0.001, "one race time per name: the best (92.5)");
+  check(boards.laps.find((r) => r.name === name)?.time === 30.25, "best lap on the lap board");
+  const times = boards.races["3"].map((r) => r.time);
+  check(times.every((t, i) => i === 0 || times[i - 1] <= t) && times.length <= 10, "board sorted, at most 10");
+}
+
 await sleep(200);
 console.log(failures ? `\n${failures} check(s) failed.` : "\nAll checks passed.");
 stopServer();

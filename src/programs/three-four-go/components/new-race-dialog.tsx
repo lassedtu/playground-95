@@ -5,6 +5,7 @@ import { Button, Fieldset, Range } from "@react95/core";
 import { Network3 } from "@react95/icons";
 
 import { formatTime } from "../engine/race";
+import { useBoards } from "../lib/global-records";
 import { trackRecords } from "../lib/records";
 import { MAX_CPUS, type RaceSettings } from "../lib/settings";
 import { CarPicker, LapsChoice, TrackList } from "./race-pickers";
@@ -24,6 +25,9 @@ export function NewRaceDialog({ initial, onStart, onCancel, onPlayOnline }: NewR
   const update = (next: Partial<RaceSettings>) => setSettings((s) => ({ ...s, ...next }));
   const records = trackRecords(settings.track);
   const best = records.bestRace[settings.laps];
+  const { boards } = useBoards(settings.track);
+  const recordLap = boards?.laps[0];
+  const recordRace = boards?.races[String(settings.laps)]?.[0];
   const start = () => onStart(settings);
 
   return (
@@ -38,10 +42,17 @@ export function NewRaceDialog({ initial, onStart, onCancel, onPlayOnline }: NewR
         <Fieldset legend="Track">
           <TrackList value={settings.track} onChange={(track) => update({ track })} onActivate={start} />
           <p className="m-0 mt-1 text-xs">
-            Best lap: {records.bestLap === null ? "–" : formatTime(records.bestLap)}
+            Your best lap: {records.bestLap === null ? "–" : formatTime(records.bestLap)}
             <br />
-            Best {settings.laps}-lap race: {best === undefined ? "–" : formatTime(best)}
+            Your best {settings.laps}-lap race: {best === undefined ? "–" : formatTime(best)}
           </p>
+          {boards && (
+            <p className="m-0 mt-1 text-xs text-[#000080]">
+              Record lap: {recordLap ? `${formatTime(recordLap.time)} (${recordLap.name})` : "–"}
+              <br />
+              Record {settings.laps}-lap race: {recordRace ? `${formatTime(recordRace.time)} (${recordRace.name})` : "–"}
+            </p>
+          )}
         </Fieldset>
 
         <Fieldset legend="Car">

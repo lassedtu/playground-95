@@ -69,6 +69,9 @@ export type FinishedRace = {
   rows: ResultRow[];
   time: number;
   bestLap: number | null;
+  /** Your lap times and car, for the global records. */
+  lapTimes: number[];
+  car: string;
   online: boolean;
 };
 
@@ -215,6 +218,8 @@ function startRacing(
       trackName: track.name,
       time: you.finished ?? 0,
       bestLap: bestLap(you),
+      lapTimes: [...you.lapTimes],
+      car: entries[yourIndex].vehicle.name,
       online: online !== null,
       rows: standings(race).map((i) => ({
         name: i === yourIndex ? refs.playerName.current : entries[i].name,

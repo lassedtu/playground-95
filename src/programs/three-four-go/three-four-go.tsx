@@ -9,6 +9,7 @@ import { StatusBar, StatusBarField } from "@/components/ui/status-bar";
 
 import { NameDialog } from "./components/name-dialog";
 import { NewRaceDialog } from "./components/new-race-dialog";
+import { RecordsDialog } from "./components/records-dialog";
 import { LobbyDialog } from "./components/online/lobby-dialog";
 import { LobbySettingsDialog } from "./components/online/lobby-settings-dialog";
 import { MessageBox } from "./components/online/message-box";
@@ -16,14 +17,15 @@ import { PasswordDialog } from "./components/online/password-dialog";
 import { PlayOnlineDialog } from "./components/online/play-online-dialog";
 import { problemText } from "./components/online/problems";
 import { type FinishedRace, type RaceControls, RaceView, type ViewOptions, type ViewStats } from "./components/race-view";
-import { type RaceResults, ResultsDialog } from "./components/results-dialog";
+import { type GlobalPlaces, type RaceResults, ResultsDialog } from "./components/results-dialog";
 import { formatTime, ordinal } from "./engine/race";
 import { loadProfile, saveProfile } from "./lib/profile";
+import { forgetBoards } from "./lib/global-records";
 import { recordRace } from "./lib/records";
 import { loadSettings, type RaceSettings, saveSettings } from "./lib/settings";
 import { type OnlineRace, onlineResultRows } from "./lib/online-race";
 import { type OnlineProblem, useOnline } from "./lib/use-online";
-import { onlineAvailable } from "./net/client";
+import { onlineAvailable, submitRecord } from "./net/client";
 import { MAX_CARS, MAX_CPUS, type ResultEntry } from "./net/protocol";
 import { trackName } from "./components/race-pickers";
 
@@ -44,10 +46,11 @@ type Panel =
   | "lobby"
   | "lobby-settings"
   | "password"
-  | "message";
+  | "message"
+  | "records";
 
 /** Panels opened over another one, which go back to it when closed. */
-const OVERLAYS: readonly Panel[] = ["name", "help", "about", "lobby-settings", "password", "message"];
+const OVERLAYS: readonly Panel[] = ["name", "help", "about", "lobby-settings", "password", "message", "records"];
 
 export function ThreeFourGo() {
   const { closeWindow } = useDesktop();
@@ -74,7 +77,10 @@ export function ThreeFourGo() {
     panelRef.current = panel;
   }, [panel]);
   /** Records you set in the current online race (saved when you cross the line, shown with the results). */
-  const onlineRecords = useRef({ newRace: false, newLap: false });
+  const onlineRecords = useRef({ newRace: false, newLap: false, id: 0 });
+  /** Counts finished races, to match the global records' answer to the right results. */
+  const finishes = useRef(0);
+  const [global, setGlobal] = useState<{ id: number; places: GlobalPlaces } | null>(null);
 
   const onlineRaceRef = useRef(onlineRace);
   useEffect(() => {
@@ -109,7 +115,7 @@ export function ThreeFourGo() {
     setPanel("message");
   }, [stopOnlineRace]);
   const onStart = useCallback((race: OnlineRace) => {
-    onlineRecords.current = { newRace: false, newLap: false };
+    onlineRecords.current = { newRace: false, newLap: false, id: -1 };
     setOnlineRace(race);
     // A new object, so the view starts the race even with the same track and laps.
     setSettings({ track: race.track, laps: race.laps, car: race.entries[race.yourSlot].vehicle.name, cpus: 0 });
@@ -181,12 +187,25 @@ export function ThreeFourGo() {
 
   const onFinish = useCallback((race: FinishedRace) => {
     const { newRace, newLap } = recordRace(race.settings.track, race.settings.laps, race.time, race.bestLap);
+    const id = ++finishes.current;
+    const name = race.rows.find((row) => row.you)?.name;
+    if (onlineAvailable && name && race.lapTimes.length === race.settings.laps) {
+      setGlobal({ id, places: "pending" });
+      const answer = (places: GlobalPlaces) => setGlobal((g) => (g?.id === id ? { id, places } : g));
+      submitRecord({ track: race.settings.track, laps: race.settings.laps, lapTimes: race.lapTimes, name, car: race.car }).then(
+        (places) => {
+          forgetBoards(race.settings.track);
+          answer(places);
+        },
+        () => answer("failed"),
+      );
+    }
     if (race.online) {
       // The results come from the server once everyone's in.
-      onlineRecords.current = { newRace, newLap };
+      onlineRecords.current = { newRace, newLap, id };
       return;
     }
-    setResults({ trackName: race.trackName, laps: race.settings.laps, rows: race.rows, newRace, newLap });
+    setResults({ trackName: race.trackName, laps: race.settings.laps, rows: race.rows, newRace, newLap, id });
     setPanel("results");
   }, []);
 
@@ -214,6 +233,7 @@ export function ThreeFourGo() {
           onSelect: () => show(lobby ? "lobby" : joining ? panel : "online"),
         },
         { label: "Your Name…", onSelect: () => openOver("name") },
+        { label: "Records…", onSelect: () => openOver("records") },
         "divider",
         { label: "Restart", shortcut: "F2", disabled: !settings || !!onlineRace, onSelect: restart },
         { label: "Pause", shortcut: "P", disabled: !settings || !!onlineRace, checked: stats?.paused ?? false, onSelect: () => controls.current?.togglePause() },
@@ -390,6 +410,13 @@ export function ThreeFourGo() {
         />
       ),
     },
+    records: {
+      title: "Records",
+      // Wide enough for the four board choices side by side.
+      width: "w-[38rem]",
+      escape: back,
+      body: <RecordsDialog initialTrack={settings?.track ?? lastSettings.track} playerName={profile.name} onClose={back} />,
+    },
     message: {
       title: "3-4-Go!",
       width: "w-80",
@@ -407,6 +434,7 @@ export function ThreeFourGo() {
           onNewRace={() => setPanel("new-race")}
           onClose={() => setPanel("none")}
           online={onlineRace ? { host: online.kind === "lobby" && online.lobby.players.some((p) => p.id === online.you && p.host), onBackToLobby: backToLobby } : undefined}
+          global={global?.id === results.id ? global.places : null}
         />
       ),
     },
@@ -445,9 +473,32 @@ export function ThreeFourGo() {
               Every car has the same number of stat points, spread differently over speed, acceleration and handling.
               The differences are small: pick the one you like.
             </li>
-            <li>You start at the back. The CPU drivers each drive their own way: some are fast, some are clumsy.</li>
-            <li>Your best lap and best race time on each track are saved.</li>
-            <li>Race → Your Name… changes the name the results show for you.</li>
+            <li>
+              Alone, you start at the back. The CPU drivers each drive their own way: some are fast, some are clumsy.
+            </li>
+            <li>
+              Your best lap and best race time on each track are saved on this computer. The 10 fastest of everyone&apos;s
+              make the global records: see Race → Records….
+            </li>
+            <li>Race → Your Name… changes the name the results (and other players) show for you.</li>
+          </ul>
+
+          <p className="m-0 font-bold">Online</p>
+          <ul className="m-0 flex list-disc flex-col gap-0.5 pl-5">
+            <li>
+              Race → Play Online… (or Play Online with Friends… in New Race): pick an open lobby, type a friend&apos;s
+              5-letter code, or create your own lobby and share its code.
+            </li>
+            <li>
+              A lobby can have a password: it keeps strangers out, but isn&apos;t very secret. The host also picks the
+              most players, the track, the laps, and up to how many CPUs fill the empty seats (8 cars at most).
+            </li>
+            <li>Everyone picks their own car. The host starts the race once there are at least 2 players.</li>
+            <li>
+              There&apos;s no pausing online. Hide the window (boss key) and your car stops and turns see-through for
+              the others, so it&apos;s not in their way.
+            </li>
+            <li>The results come when everyone has finished, or 30 seconds after the first player.</li>
           </ul>
           <PanelButtons>
             <Button onClick={back}>OK</Button>
@@ -471,6 +522,10 @@ export function ThreeFourGo() {
             (CC0).
           </p>
           <p className="m-0">Skies from Nasha&apos;s Parallax Worlds.</p>
+          <p className="m-0">
+            Online races and the global records run on a small Cloudflare server. It keeps lobbies while they&apos;re
+            open, and the records (names, cars and times). Nothing else.
+          </p>
           <PanelButtons>
             <Button onClick={back}>OK</Button>
           </PanelButtons>
