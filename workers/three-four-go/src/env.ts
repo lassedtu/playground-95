@@ -15,3 +15,4 @@ export interface Env {
 
 export const directory = (env: Env) => env.DIRECTORY.get(env.DIRECTORY.idFromName("main"));
 export const room = (env: Env, code: string) => env.ROOMS.get(env.ROOMS.idFromName(code));
+export const records = (env: Env) => env.RECORDS.get(env.RECORDS.idFromName("main"));

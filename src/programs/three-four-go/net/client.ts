@@ -3,12 +3,15 @@ import {
   type LobbyListing,
   type LobbyState,
   type NewLobby,
+  type NewRecord,
+  type RecordPlaces,
   PING,
   PONG,
   PROTOCOL,
   type RefusedReason,
   type ResultEntry,
   type ServerMessage,
+  type TrackBoards,
 } from "./protocol";
 
 /**
@@ -30,7 +33,7 @@ const SYNC_SPACING = 200;
  * down), we can't reach it, it doesn't allow this site (ALLOWED_ORIGINS), or
  * it answered nonsense.
  */
-export type ServerProblem = "busy" | "unreachable" | "not-allowed" | "bad-reply";
+export type ServerProblem = "busy" | "unreachable" | "not-allowed" | "outdated" | "bad-reply";
 
 export class ServerError extends Error {
   constructor(readonly problem: ServerProblem) {
@@ -49,6 +52,8 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
   // Over the free plan's daily limit, Cloudflare answers with errors until 00:00 UTC.
   if (response.status === 429 || response.status >= 500) throw new ServerError("busy");
   if (response.status === 403) throw new ServerError("not-allowed");
+  // Asking for something it doesn't have: a server older than this game.
+  if (response.status === 404) throw new ServerError("outdated");
   if (!response.ok) throw new ServerError("bad-reply");
   try {
     return (await response.json()) as T;
@@ -65,6 +70,13 @@ export async function createLobby(lobby: NewLobby) {
   const { code } = await call<{ code: string }>("/lobbies", { method: "POST", body: JSON.stringify(lobby) });
   return code;
 }
+
+/** A track's global records boards. */
+export const getBoards = (track: string) => call<TrackBoards>(`/records/${encodeURIComponent(track)}`);
+
+/** Sends a finished race to the global records; returns where it got on the boards. */
+export const submitRecord = (record: NewRecord) =>
+  call<RecordPlaces>("/records", { method: "POST", body: JSON.stringify(record) });
 
 export type LobbyEvents = {
   /** You're in. `you` is your player id. Called again after a reconnect (with a new id). */

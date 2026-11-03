@@ -6,7 +6,7 @@ import {
   normalizeCode,
   PASSWORD_MAX,
 } from "../../../src/programs/three-four-go/net/protocol";
-import { directory, type Env, room } from "./env";
+import { directory, type Env, records, room } from "./env";
 
 export { Directory } from "./directory";
 export { Records } from "./records";
@@ -49,15 +49,21 @@ function randomCode() {
   return [...bytes].map((b) => CODE_ALPHABET[b % CODE_ALPHABET.length]).join("");
 }
 
-async function createLobby(request: Request, env: Env, origin: string | null) {
+/** A small JSON request body, or null if it's too big or not JSON. */
+async function readBody(request: Request): Promise<Record<string, unknown> | null> {
   const text = await request.text();
-  if (text.length > BODY_MAX) return json({ error: "too-big" }, 413, origin);
-  let body: Record<string, unknown>;
+  if (text.length > BODY_MAX) return null;
   try {
-    body = JSON.parse(text) as Record<string, unknown>;
+    const body: unknown = JSON.parse(text);
+    return typeof body === "object" && body !== null ? (body as Record<string, unknown>) : null;
   } catch {
-    return json({ error: "bad-request" }, 400, origin);
+    return null;
   }
+}
+
+async function createLobby(request: Request, env: Env, origin: string | null) {
+  const body = await readBody(request);
+  if (!body) return json({ error: "bad-request" }, 400, origin);
   const settings = cleanSettings(body, DEFAULT_LOBBY);
   const password = typeof body.password === "string" ? body.password.slice(0, PASSWORD_MAX) : "";
   for (let i = 0; i < CODE_TRIES; i++) {
@@ -76,6 +82,23 @@ export default {
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors(origin) });
 
     const parts = url.pathname.split("/").filter(Boolean);
+
+    // /records (POST a finished race) and /records/:track (its boards)
+    if (parts[0] === "records") {
+      if (parts.length === 1 && request.method === "POST") {
+        const body = await readBody(request);
+        // Only used to limit how often one address submits; not stored.
+        const address = request.headers.get("CF-Connecting-IP") ?? "unknown";
+        const places = body ? await records(env).submit(body, address) : null;
+        return places ? json(places, 200, origin) : json({ error: "refused" }, 400, origin);
+      }
+      if (parts.length === 2 && request.method === "GET") {
+        const boards = await records(env).boards(decodeURIComponent(parts[1]));
+        return boards ? json(boards, 200, origin) : json({ error: "not-found" }, 404, origin);
+      }
+      return json({ error: "not-found" }, 404, origin);
+    }
+
     if (parts[0] !== "lobbies") return json({ error: "not-found" }, 404, origin);
 
     // /lobbies

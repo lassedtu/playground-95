@@ -8,7 +8,8 @@
     "strict": true,
     "noEmit": true,
     "isolatedModules": true,
+    "resolveJsonModule": true,
     "skipLibCheck": true
   },
-  "include": ["src", "../../src/programs/three-four-go/net/protocol.ts"]
+  "include": ["src", "../../src/programs/three-four-go/net/protocol.ts", "../../src/programs/three-four-go/net/tracks.ts"]
 }

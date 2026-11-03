@@ -186,3 +186,43 @@ export type ServerMessage =
 /** Sent as plain text (not JSON) to keep a connection open; answered with "pong" for free. */
 export const PING = "ping";
 export const PONG = "pong";
+
+/** Times kept per board. */
+export const BOARD_SIZE = 10;
+/** Longest lap a record can have (s). */
+const LAP_MAX = 600;
+
+/** One line of a global records board. */
+export type RecordEntry = { name: string; car: string; time: number; at: number };
+
+/** A track's boards: the fastest laps, and the fastest races for each number of laps. */
+export type TrackBoards = { laps: RecordEntry[]; races: Record<string, RecordEntry[]> };
+
+/** A finished race, as the game sends it for the records. */
+export type NewRecord = { track: string; laps: number; lapTimes: number[]; name: string; car: string };
+
+/** Where a race got on the boards (1–10), or null where it didn't. */
+export type RecordPlaces = { lap: number | null; race: number | null };
+
+/**
+ * A finished race from untrusted input, or null if it can't be one: a
+ * known track and lap count, one time per lap, no lap faster than any car
+ * can go (`minLap` for the track, null if there's no such track).
+ */
+export function cleanRecord(input: unknown, minLap: (track: string) => number | null): NewRecord | null {
+  if (typeof input !== "object" || input === null) return null;
+  const raw = input as Partial<Record<keyof NewRecord, unknown>>;
+  const name = typeof raw.name === "string" ? cleanName(raw.name) : "";
+  const fastest = typeof raw.track === "string" ? minLap(raw.track) : null;
+  if (!name || fastest === null || !isId(raw.car) || !LAP_CHOICES.includes(raw.laps as 1)) return null;
+  const lapTimes = raw.lapTimes;
+  if (!Array.isArray(lapTimes) || lapTimes.length !== raw.laps) return null;
+  if (!lapTimes.every((t) => isNumber(t) && t >= fastest && t <= LAP_MAX)) return null;
+  return {
+    track: raw.track as string,
+    laps: raw.laps as number,
+    lapTimes: lapTimes.map((t: number) => Math.round(t * 1000) / 1000),
+    name,
+    car: raw.car,
+  };
+}
