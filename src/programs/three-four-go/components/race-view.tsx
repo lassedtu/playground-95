@@ -71,6 +71,8 @@ type RaceViewProps = {
   options: ViewOptions;
   /** Holds the race (e.g. while a dialog is open over it). */
   hold: boolean;
+  /** Your name in the results. */
+  playerName: string;
   /** Called a few times a second with what the status bar shows. */
   onStats: (stats: ViewStats) => void;
   /** Called once, a moment after you cross the line on your last lap. */
@@ -82,6 +84,7 @@ type RaceViewProps = {
 type Refs = {
   options: { current: ViewOptions };
   hold: { current: boolean };
+  playerName: { current: string };
   onStats: { current: (stats: ViewStats) => void };
   onFinish: { current: (race: FinishedRace) => void };
   controls: RefObject<RaceControls | null>;
@@ -169,7 +172,7 @@ function startRacing(
       time: you.finished ?? 0,
       bestLap: bestLap(you),
       rows: standings(race).map((i) => ({
-        name: entries[i].name,
+        name: i === PLAYER ? refs.playerName.current : entries[i].name,
         car: entries[i].vehicle.label,
         you: i === PLAYER,
         time: race.racers[i].finished,
@@ -298,11 +301,12 @@ function drawMessage(ctx: CanvasRenderingContext2D, title: string, text: string)
  * keeping its aspect ratio; whole-number scales when there's room for 2× or
  * more. The game loop only runs while the view is on screen.
  */
-export function RaceView({ settings, options, hold, onStats, onFinish, controls }: RaceViewProps) {
+export function RaceView({ settings, options, hold, playerName, onStats, onFinish, controls }: RaceViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // Mutable values the game loop reads; kept up to date by the effect below.
   const optionsRef = useRef(options);
   const holdRef = useRef(hold);
+  const playerNameRef = useRef(playerName);
   const onStatsRef = useRef(onStats);
   const onFinishRef = useRef(onFinish);
   const loopRef = useRef<Loop | null>(null);
@@ -321,11 +325,12 @@ export function RaceView({ settings, options, hold, onStats, onFinish, controls 
   useEffect(() => {
     optionsRef.current = options;
     holdRef.current = hold;
+    playerNameRef.current = playerName;
     onStatsRef.current = onStats;
     onFinishRef.current = onFinish;
     // Coming back from a dialog: the view gets the keys again.
     if (!hold) canvasRef.current?.focus();
-  }, [options, hold, onStats, onFinish]);
+  }, [options, hold, playerName, onStats, onFinish]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -338,6 +343,7 @@ export function RaceView({ settings, options, hold, onStats, onFinish, controls 
     const refs: Refs = {
       options: optionsRef,
       hold: holdRef,
+      playerName: playerNameRef,
       onStats: onStatsRef,
       onFinish: onFinishRef,
       controls,

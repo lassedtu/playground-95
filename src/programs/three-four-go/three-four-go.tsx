@@ -7,10 +7,12 @@ import { useDesktop } from "@/components/desktop/desktop-context";
 import { type Menu, MenuBar } from "@/components/ui/menu-bar";
 import { StatusBar, StatusBarField } from "@/components/ui/status-bar";
 
+import { NameDialog } from "./components/name-dialog";
 import { NewRaceDialog } from "./components/new-race-dialog";
 import { type FinishedRace, type RaceControls, RaceView, type ViewOptions, type ViewStats } from "./components/race-view";
 import { type RaceResults, ResultsDialog } from "./components/results-dialog";
 import { formatTime, ordinal } from "./engine/race";
+import { loadProfile, saveProfile } from "./lib/profile";
 import { recordRace } from "./lib/records";
 import { loadSettings, type RaceSettings, saveSettings } from "./lib/settings";
 
@@ -19,13 +21,14 @@ const PROGRAM_ID = "three-four-go";
 /** Debug views only exist when running locally (`next dev`), not in production. */
 const DEV = process.env.NODE_ENV === "development";
 
-type Panel = "none" | "new-race" | "results" | "help" | "about";
+type Panel = "none" | "new-race" | "name" | "results" | "help" | "about";
 
 export function ThreeFourGo() {
   const { closeWindow } = useDesktop();
   const [panel, setPanel] = useState<Panel>("new-race");
   const [settings, setSettings] = useState<RaceSettings | null>(null);
   const [lastSettings, setLastSettings] = useState<RaceSettings>(loadSettings);
+  const [profile, setProfile] = useState(loadProfile);
   const [results, setResults] = useState<RaceResults | null>(null);
   const [stats, setStats] = useState<ViewStats | null>(null);
   const [options, setOptions] = useState<ViewOptions>({ hitboxes: false, logic: false });
@@ -57,6 +60,7 @@ export function ThreeFourGo() {
       label: "Race",
       entries: [
         { label: "New Race…", onSelect: () => setPanel("new-race") },
+        { label: "Your Name…", onSelect: () => setPanel("name") },
         { label: "Restart", shortcut: "F2", disabled: !settings, onSelect: restart },
         { label: "Pause", shortcut: "P", disabled: !settings, checked: stats?.paused ?? false, onSelect: () => controls.current?.togglePause() },
         "divider",
@@ -99,6 +103,22 @@ export function ThreeFourGo() {
       width: "w-[26rem]",
       body: (
         <NewRaceDialog initial={lastSettings} onStart={start} onCancel={settings ? () => setPanel("none") : null} />
+      ),
+    },
+    name: {
+      title: "Your Name",
+      width: "w-64",
+      body: (
+        <NameDialog
+          initial={profile.name}
+          onSave={(name) => {
+            const next = { ...profile, name };
+            saveProfile(next);
+            setProfile(next);
+            setPanel(settings ? "none" : "new-race");
+          }}
+          onCancel={() => setPanel(settings ? "none" : "new-race")}
+        />
       ),
     },
     results: {
@@ -144,6 +164,7 @@ export function ThreeFourGo() {
             </li>
             <li>You start at the back. The CPU drivers each drive their own way: some are fast, some are clumsy.</li>
             <li>Your best lap and best race time on each track are saved.</li>
+            <li>Race → Your Name… changes the name the results show for you.</li>
           </ul>
           <PanelButtons>
             <Button onClick={() => setPanel(settings ? "none" : "new-race")}>OK</Button>
@@ -198,6 +219,7 @@ export function ThreeFourGo() {
             settings={settings}
             options={DEV ? options : { hitboxes: false, logic: false }}
             hold={panel !== "none" && panel !== "results"}
+            playerName={profile.name}
             onStats={onStats}
             onFinish={onFinish}
             controls={controls}

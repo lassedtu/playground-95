@@ -58,9 +58,12 @@ export function ResultsDialog({ results, onAgain, onNewRace, onClose }: ResultsD
           </thead>
           <tbody>
             {results.rows.map((row, i) => (
-              <tr key={row.name} className={row.you ? "bg-win-navy text-white" : ""}>
+              <tr key={i} className={row.you ? "bg-win-navy text-white" : ""}>
                 <td className="px-1 py-0.5 tabular-nums">{i + 1}</td>
-                <td className="px-1 py-0.5">{row.name}</td>
+                <td className="px-1 py-0.5">
+                  {row.name}
+                  {row.you && " (you)"}
+                </td>
                 <td className="px-1 py-0.5">{row.car}</td>
                 <td className="px-1 py-0.5 tabular-nums">{row.time === null ? "Still racing" : formatTime(row.time)}</td>
                 <td className="px-1 py-0.5 tabular-nums">{row.bestLap === null ? "–" : formatTime(row.bestLap)}</td>
