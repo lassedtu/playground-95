@@ -473,12 +473,32 @@ export function ThreeFourGo() {
               Every car has the same number of stat points, spread differently over speed, acceleration and handling.
               The differences are small: pick the one you like.
             </li>
-            <li>You start at the back. The CPU drivers each drive their own way: some are fast, some are clumsy.</li>
+            <li>
+              Alone, you start at the back. The CPU drivers each drive their own way: some are fast, some are clumsy.
+            </li>
             <li>
               Your best lap and best race time on each track are saved on this computer. The 10 fastest of everyone&apos;s
               make the global records: see Race → Records….
             </li>
-            <li>Race → Your Name… changes the name the results show for you.</li>
+            <li>Race → Your Name… changes the name the results (and other players) show for you.</li>
+          </ul>
+
+          <p className="m-0 font-bold">Online</p>
+          <ul className="m-0 flex list-disc flex-col gap-0.5 pl-5">
+            <li>
+              Race → Play Online… (or Play Online with Friends… in New Race): pick an open lobby, type a friend&apos;s
+              5-letter code, or create your own lobby and share its code.
+            </li>
+            <li>
+              A lobby can have a password: it keeps strangers out, but isn&apos;t very secret. The host also picks the
+              most players, the track, the laps, and up to how many CPUs fill the empty seats (8 cars at most).
+            </li>
+            <li>Everyone picks their own car. The host starts the race once there are at least 2 players.</li>
+            <li>
+              There&apos;s no pausing online. Hide the window (boss key) and your car stops and turns see-through for
+              the others, so it&apos;s not in their way.
+            </li>
+            <li>The results come when everyone has finished, or 30 seconds after the first player.</li>
           </ul>
           <PanelButtons>
             <Button onClick={back}>OK</Button>
@@ -502,6 +522,10 @@ export function ThreeFourGo() {
             (CC0).
           </p>
           <p className="m-0">Skies from Nasha&apos;s Parallax Worlds.</p>
+          <p className="m-0">
+            Online races and the global records run on a small Cloudflare server. It keeps lobbies while they&apos;re
+            open, and the records (names, cars and times). Nothing else.
+          </p>
           <PanelButtons>
             <Button onClick={back}>OK</Button>
           </PanelButtons>

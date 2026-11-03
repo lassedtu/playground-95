@@ -70,7 +70,7 @@ A sliding-block puzzle: slide the cars and trucks out of the way to get the red 
 
 ## 3-4-Go!
 
-97 year old kart racer drawn the old-fashioned way: a flat map tilted into 3D (Mode 7). Four tracks, Hill Climb, Winterland, Beach Day and Westico, each with its own scenery wrapping round the horizon. Pick a car and race up to 7 CPU drivers, each with their own personality, or go for a time trial. Drift for a little extra speed, mind the grass (and the sea), and beat your best lap. Race your friends online in a lobby (share its code, with an optional password), and chase the global top 10 for each track. Works with the keyboard or on-screen buttons on a touch screen.
+97 year old kart racer drawn the old-fashioned way: a flat map tilted into 3D (Mode 7). Four tracks, Hill Climb, Winterland, Beach Day and Westico, each with its own scenery. Pick a car and race up to 7 CPU drivers, each with their own personality, or go for a time trial. Drift for extra speed, mind the grass (and the sea), and beat your best lap. Race your friends online in a lobby (share its code, with an optional password), and chase the global top 10 for each track. Works with the keyboard or on-screen buttons on a touch screen.
 
 # Boss Key
 
@@ -98,7 +98,7 @@ pnpm --dir workers/three-four-go install
 pnpm --dir workers/three-four-go dev   # http://localhost:8787
 ```
 
-and put `NEXT_PUBLIC_THREE_FOUR_GO_SERVER=http://localhost:8787` in `.env.local`. `node --no-warnings scripts/three-four-go/check-lobbies.mjs` checks the lobbies end to end (it starts a local server by itself, or pass a server's address to check that one).
+and put `NEXT_PUBLIC_THREE_FOUR_GO_SERVER=http://localhost:8787` in `.env.local`. `node --no-warnings scripts/three-four-go/check-lobbies.mjs` checks the lobbies, races and records end to end (it starts a local server by itself, or pass a server's address to check that one; the records checks only run locally). To fill a lobby without more browsers, `node --no-warnings scripts/three-four-go/bots.mjs <code> [bots]` adds fake players that drive along the road (stay host yourself).
 
 To put it online (free Cloudflare account, once):
 

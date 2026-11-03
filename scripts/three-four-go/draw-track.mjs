@@ -14,6 +14,8 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
+import { sampleCurve } from "./curve.mjs";
+
 const root = fileURLToPath(new URL("../../", import.meta.url));
 const { SURFACE, PALETTE, checkpointColor } = await import(`${root}src/programs/three-four-go/data/palette.ts`);
 
@@ -23,7 +25,6 @@ const design = (await import(`./designs/${id}.mjs`)).default;
 const out = `${root}src/programs/three-four-go/data/tracks/${id}/`;
 mkdirSync(out, { recursive: true });
 
-const SAMPLES_PER_POINT = 48;
 /** Half-thickness of a checkpoint stripe and of the finish line, along the road. */
 const CHECKPOINT_HALF = 3;
 const FINISH_HALF = 4;
@@ -36,34 +37,14 @@ const STRIPE_REACH = 56;
 /** Start grid: distance behind the finish line, gap between rows, sideways offset. */
 const GRID = { behind: 22, row: 22, stagger: 11, side: 14 };
 
-const { size, roadWidth, border, points } = design;
+const { size, roadWidth, border } = design;
 const half = roadWidth / 2;
 /** What's around the map's edge: a wall, or water you can drive into (and get put back on the road). */
 const edgeSurface = design.edge === "water" ? SURFACE.out : SURFACE.wall;
 
 // 1. Sample the closed curve.
-const curve = [];
-for (let i = 0; i < points.length; i++) {
-  const [p0, p1, p2, p3] = [-1, 0, 1, 2].map((k) => points[(i + k + points.length) % points.length]);
-  for (let s = 0; s < SAMPLES_PER_POINT; s++) {
-    const t = s / SAMPLES_PER_POINT;
-    const t2 = t * t;
-    const t3 = t2 * t;
-    const at = (k) =>
-      0.5 * (2 * p1[k] + (-p0[k] + p2[k]) * t + (2 * p0[k] - 5 * p1[k] + 4 * p2[k] - p3[k]) * t2 + (-p0[k] + 3 * p1[k] - 3 * p2[k] + p3[k]) * t3);
-    curve.push([at(0), at(1)]);
-  }
-}
-const count = curve.length;
-const arc = [0];
-for (let i = 1; i <= count; i++) {
-  const [ax, ay] = curve[i - 1];
-  const [bx, by] = curve[i % count];
-  arc.push(arc[i - 1] + Math.hypot(bx - ax, by - ay));
-}
-const lapLength = arc[count];
+const { curve, arc, count, lapLength, finishArc } = sampleCurve(design);
 // Distances along the lap are measured from the finish line.
-const finishArc = arc[Math.round(design.finish * SAMPLES_PER_POINT)];
 const fromFinish = (s) => (((s - finishArc) % lapLength) + lapLength) % lapLength;
 const lapDistance = (a, b) => Math.min(Math.abs(a - b), lapLength - Math.abs(a - b));
 const checkpointArcs = Array.from({ length: design.checkpoints }, (_, k) => ((k + 1) * lapLength) / (design.checkpoints + 1));
